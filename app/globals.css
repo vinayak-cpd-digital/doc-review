@@ -1,13 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9fafb;
+  /* White background + dark foreground for readability */
+  --background: #ffffff;
   --foreground: #111827;
 }
 
 @theme inline {
+  /* Base colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  /* Brand colors */
+  --color-primary: #be1549; /* Cardinal – main brand / buttons */
+  --color-primary-foreground: #fdf2f7; /* Button text on Cardinal */
+
+  /* Supporting colors: light tints so they sit nicely on white */
+  --color-muted: #fdf2f7; /* Very light pink/tamarind tint */
+  --color-card: #ffffff; /* Cards / panels (pure white) */
+  --color-border: #e5d0da; /* Soft tinted border */
+
   --font-sans: var(--font-source-sans), ui-sans-serif, system-ui, sans-serif;
 }
 

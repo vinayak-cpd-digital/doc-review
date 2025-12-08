@@ -16,7 +16,7 @@ interface ReviewCardProps {
 export default function ReviewCard({ field, snippet, searchTerm, isExpanded, onToggle }: ReviewCardProps) {
   const isCompliant = field.compliant === "Y";
   const borderColor = isCompliant ? "border-green-200" : "border-red-200";
-  const bgColor = isCompliant ? "bg-green-50/30" : "bg-red-50/30";
+  const bgColor = isCompliant ? "bg-green-50/40" : "bg-red-50/40";
 
   const renderHighlightedText = (text: string) => {
     const parts = highlightText(text, searchTerm);
@@ -32,7 +32,8 @@ export default function ReviewCard({ field, snippet, searchTerm, isExpanded, onT
   };
 
   return (
-    <div className={`border-2 ${borderColor} ${bgColor} rounded-xl overflow-hidden transition-all duration-200 hover:shadow-lg shadow-sm`}>
+    <div className={`border-2 ${borderColor} ${bgColor} rounded-xl overflow-hidden transition-all duration-200 hover:shadow-lg shadow-sm`}
+    >
       {/* Collapsed Header */}
       <button
         onClick={onToggle}

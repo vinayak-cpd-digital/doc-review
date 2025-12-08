@@ -49,8 +49,8 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
 
   if (!file) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-center text-gray-400">
+      <div className="flex items-center justify-center h-full bg-background/60">
+        <div className="text-center text-foreground/60">
           <FileText className="w-16 h-16 mx-auto mb-4" strokeWidth={1.5} />
           <p className="text-lg font-medium">No Document Uploaded</p>
           <p className="text-sm mt-2">Upload a .docx file to preview</p>
@@ -61,10 +61,10 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full bg-white">
+      <div className="flex items-center justify-center h-full bg-card">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-blue-600" />
-          <p className="text-gray-600">Converting document...</p>
+          <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-primary" />
+          <p className="text-foreground/80">Converting document...</p>
         </div>
       </div>
     );
@@ -72,8 +72,8 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-center text-red-600">
+      <div className="flex items-center justify-center h-full bg-background/60">
+        <div className="text-center text-red-400">
           <p className="text-lg font-medium">{error}</p>
         </div>
       </div>
@@ -81,15 +81,15 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-100">
+    <div className="h-full flex flex-col bg-background/60">
       {/* Zoom Controls */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b">
-        <h3 className="text-sm font-medium text-gray-700">Document Preview</h3>
+      <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border">
+        <h3 className="text-sm font-medium text-foreground/80">Document Preview</h3>
         <div className="flex items-center gap-3">
           <button
             onClick={handleZoomOut}
             disabled={zoom <= 50}
-            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded hover:bg-background/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-foreground"
             title="Zoom Out"
           >
             <ZoomOut size={18} />
@@ -100,7 +100,7 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
           <button
             onClick={handleZoomIn}
             disabled={zoom >= 200}
-            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded hover:bg-background/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-foreground"
             title="Zoom In"
           >
             <ZoomIn size={18} />

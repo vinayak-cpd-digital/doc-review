@@ -150,11 +150,11 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
         disabled={isUploading}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
           isUploading
-            ? "bg-blue-400 cursor-not-allowed"
+            ? "bg-primary/60 cursor-not-allowed text-primary-foreground/70"
             : success
-            ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-            : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-        } text-white shadow-lg hover:shadow-xl disabled:shadow-md transform hover:scale-[1.02] active:scale-[0.98]`}
+            ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+            : "bg-primary text-primary-foreground hover:bg-primary/90"
+        } shadow-lg hover:shadow-xl disabled:shadow-md transform hover:scale-[1.02] active:scale-[0.98]`}
       >
         {isUploading ? (
           <>
@@ -180,8 +180,8 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
         disabled={!isApproved || isExporting || !apiResponse}
         className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
           isApproved && apiResponse && !isExporting
-            ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            : "bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-sm"
+            ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            : "bg-muted text-foreground/40 cursor-not-allowed opacity-70 shadow-sm"
         }`}
         title={!isApproved ? "Please approve the review before exporting" : "Export compliance report"}
       >

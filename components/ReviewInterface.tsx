@@ -101,8 +101,8 @@ export default function ReviewInterface({
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-center text-gray-400">
+      <div className="flex items-center justify-center h-full bg-background/60">
+        <div className="text-center text-foreground/60">
           <AlertCircle className="w-16 h-16 mx-auto mb-4" strokeWidth={1.5} />
           <p className="text-lg font-medium">No Review Data</p>
           <p className="text-sm mt-2">Upload a document to see the compliance review</p>
@@ -112,16 +112,16 @@ export default function ReviewInterface({
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-card">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-sm border-b border-border shadow-sm">
         {/* Document Metadata */}
-        <div className="flex items-start justify-between p-4 border-b border-gray-100">
+        <div className="flex items-start justify-between p-4 border-b border-border/60">
           <div className="flex-1">
-            <h1 className="text-lg font-semibold text-gray-900 mb-2 tracking-tight">
+            <h1 className="text-lg font-semibold text-foreground mb-2 tracking-tight">
               {data.meta.document_title}
             </h1>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-foreground/80">
               <span className="flex items-center gap-1.5">
                 <span className="text-base">🏨</span>
                 <strong className="font-semibold">Hotel:</strong>
@@ -132,7 +132,7 @@ export default function ReviewInterface({
                 <strong className="font-semibold">Airline:</strong>
                 <span className="font-medium">{data.meta.airline_name}</span>
               </span>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-primary/10 text-primary font-semibold text-xs border border-primary/40">
                 {data.meta.station_or_airport_code}
               </span>
             </div>
@@ -162,7 +162,7 @@ export default function ReviewInterface({
           <div className="flex items-center gap-2">
             <button
               onClick={handleExpandAll}
-              className="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 font-medium text-xs transition-colors flex items-center gap-1.5 text-gray-900"
+              className="px-3 py-1.5 rounded-md border border-border bg-background/40 hover:bg-background/70 font-medium text-xs transition-colors flex items-center gap-1.5 text-foreground"
             >
               {expandAll ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
               {expandAll ? "Collapse" : "Expand"}
@@ -176,7 +176,7 @@ export default function ReviewInterface({
                 className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
                   isApproved
                     ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white cursor-default shadow-md"
-                    : "bg-white border-2 border-green-600 text-green-700 hover:bg-green-50 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+                    : "bg-primary text-primary-foreground border-2 border-primary hover:bg-primary/90 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
                 }`}
               >
                 <CheckCircle size={14} />
@@ -246,7 +246,7 @@ export default function ReviewInterface({
       )}
 
       {/* Review Cards */}
-      <div className="flex-1 overflow-auto p-4 space-y-3">
+      <div className="flex-1 overflow-auto p-4 space-y-3 bg-background/40">
         {filteredReview.length > 0 ? (
           filteredReview.map((item) => (
             <ReviewCard
@@ -259,7 +259,7 @@ export default function ReviewInterface({
             />
           ))
         ) : (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-12 text-foreground/50">
             <p className="text-lg">No results found</p>
             <p className="text-sm mt-2">Try adjusting your search or filter</p>
           </div>
