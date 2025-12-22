@@ -28,7 +28,6 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
     setError(null);
     setSuccess(false);
 
-    // Validate file
     const validation = validateFile(file);
     if (!validation.valid) {
       setError(validation.error || "Invalid file");
@@ -61,7 +60,6 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
           file: file,
         });
 
-        // Clear success message after 3 seconds
         setTimeout(() => setSuccess(false), 3000);
       } else {
         throw new Error("Analysis failed");
@@ -73,11 +71,8 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
     }
   };
 
-  // Handle export
   const handleExport = async () => {
-    if (!apiResponse || !isApproved) {
-      return;
-    }
+    if (!apiResponse || !isApproved) return;
 
     setIsExporting(true);
     setError(null);
@@ -88,23 +83,16 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          additionalProp1: apiResponse,
-        }),
+        body: JSON.stringify({ additionalProp1: apiResponse }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Export failed: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
 
-      // Get the blob from response
       const blob = await response.blob();
-      
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `compliance-report-${Date.now()}.pdf`; // or .xlsx based on backend response
+      a.download = `compliance-report-${Date.now()}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -125,8 +113,7 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    handleFileSelect(file);
+    handleFileSelect(e.dataTransfer.files[0]);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -138,7 +125,7 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
       <input
         ref={fileInputRef}
         type="file"
-        accept=".docx"
+        accept=".pdf,.doc,.docx"
         onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
         className="hidden"
       />
@@ -174,7 +161,6 @@ export default function FileUpload({ onUploadSuccess, apiResponse, isApproved }:
         )}
       </button>
 
-      {/* Export Button - Only enabled when approved */}
       <button
         onClick={handleExport}
         disabled={!isApproved || isExporting || !apiResponse}

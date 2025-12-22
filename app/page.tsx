@@ -42,8 +42,8 @@ export default function Home() {
           <Image
             src={logo} // Adjust path if your logo file lives elsewhere
             alt="Copperpod Logo"
-            width={140}
-            height={32}
+            width={240}
+            height={82}
             className="h-8 w-auto object-contain"
             priority
           />

@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { FileText, Loader2, ZoomIn, ZoomOut } from "lucide-react";
 import mammoth from "mammoth";
+import dynamic from "next/dynamic";
+
+const PdfViewer = dynamic(() => import("./PdfViewer"), { ssr: false });
 
 interface DocumentPreviewProps {
   file: File | null;
@@ -13,8 +16,16 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPdf, setIsPdf] = useState(false);
+  const [numPages, setNumPages] = useState<number | null>(null);
 
   useEffect(() => {
+    // Reset state when file changes
+    setIsPdf(false);
+    setHtmlContent("");
+    setError(null);
+    setNumPages(null);
+
     const convertDocument = async () => {
       if (!file) {
         setHtmlContent("");
@@ -22,9 +33,25 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
       }
 
       setIsLoading(true);
-      setError(null);
-
       try {
+        const fileName = file.name.toLowerCase();
+
+        // Handle PDF: use react-pdf to render without conversion
+        if (file.type === "application/pdf" || fileName.endsWith(".pdf")) {
+          setIsPdf(true);
+          setHtmlContent("");
+          setIsLoading(false);
+          return;
+        }
+
+        // Handle legacy .doc: upload is allowed, but preview is not supported client-side
+        if (fileName.endsWith(".doc")) {
+          setHtmlContent("");
+          setError("Preview for .doc files is not supported, but your file was uploaded successfully.");
+          return;
+        }
+
+        // Default: treat as .docx and convert via mammoth
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
         setHtmlContent(result.value);
@@ -110,25 +137,29 @@ export default function DocumentPreview({ file }: DocumentPreviewProps) {
 
       {/* Document Content */}
       <div className="flex-1 overflow-auto p-6">
-        <div
-          className="mx-auto bg-white shadow-lg transition-all duration-200"
-          style={{
-            width: `${zoom}%`,
-            maxWidth: "850px",
-            minWidth: "400px",
-          }}
-        >
+        {isPdf ? (
+          <PdfViewer file={file} zoom={zoom} onLoadSuccess={setNumPages} />
+        ) : (
           <div
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-            className="prose prose-sm max-w-none p-8 
-              prose-headings:text-gray-900 prose-headings:font-bold
-              prose-p:text-gray-900 prose-p:leading-relaxed
-              prose-strong:text-gray-900 prose-strong:font-bold
-              prose-ul:list-disc prose-ol:list-decimal
-              prose-li:text-gray-900
-              **:text-gray-900"
-          />
-        </div>
+            className="mx-auto bg-white shadow-lg transition-all duration-200"
+            style={{
+              width: `${zoom}%`,
+              maxWidth: "850px",
+              minWidth: "400px",
+            }}
+          >
+            <div
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+              className="prose prose-sm max-w-none p-8 
+                prose-headings:text-gray-900 prose-headings:font-bold
+                prose-p:text-gray-900 prose-p:leading-relaxed
+                prose-strong:text-gray-900 prose-strong:font-bold
+                prose-ul:list-disc prose-ol:list-decimal
+                prose-li:text-gray-900
+                **:text-gray-900"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

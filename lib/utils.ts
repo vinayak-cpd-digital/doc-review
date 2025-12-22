@@ -44,38 +44,62 @@ function escapeRegex(string: string): string {
 /**
  * Validate file type and size
  */
-export function validateFile(file: File): { valid: boolean; error?: string } {
-  const validExtensions = [".docx"];
-  const validMimeTypes = [
+// export function validateFile(file: File): { valid: boolean; error?: string } {
+//   const validExtensions = [".doc", ".docx", ".pdf"];
+//   const validMimeTypes = [
+//     "application/msword", // .doc
+//     "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+//     "application/pdf", // .pdf
+//   ];
+//   const maxSizeInBytes = 10 * 1024 * 1024; // 10MB
+
+//   const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+
+//   if (!validExtensions.includes(extension)) {
+//     return {
+//       valid: false,
+//       error: "Please upload a .doc, .docx, or .pdf file",
+//     };
+//   }
+
+//   if (!validMimeTypes.includes(file.type)) {
+//     return {
+//       valid: false,
+//       error: "Invalid file type. Please upload a valid .doc, .docx, or .pdf file",
+//     };
+//   }
+
+//   if (file.size > maxSizeInBytes) {
+//     return {
+//       valid: false,
+//       error: "File size must be less than 10MB",
+//     };
+//   }
+
+//   return { valid: true };
+// }
+
+export const validateFile = (file: File) => {
+  const allowedExtensions = /(\.pdf|\.doc|\.docx)$/i;
+  const allowedMimeTypes = [
+    "application/pdf",
+    "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ];
-  const maxSizeInBytes = 10 * 1024 * 1024; // 10MB
 
-  const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+  const isValidExtension = allowedExtensions.test(file.name);
+  const isValidMime = allowedMimeTypes.includes(file.type);
 
-  if (!validExtensions.includes(extension)) {
+  if (!isValidExtension || !isValidMime) {
     return {
       valid: false,
-      error: "Please upload a .docx file",
+      error: "Only .pdf, .doc and .docx formats are allowed",
     };
   }
 
-  if (!validMimeTypes.includes(file.type)) {
-    return {
-      valid: false,
-      error: "Invalid file type. Please upload a valid .docx file",
-    };
-  }
+  return { valid: true, error: null };
+};
 
-  if (file.size > maxSizeInBytes) {
-    return {
-      valid: false,
-      error: "File size must be less than 10MB",
-    };
-  }
-
-  return { valid: true };
-}
 
 /**
  * Format file size for display
@@ -93,7 +117,7 @@ export function formatFileSize(bytes: number): string {
 /**
  * Debounce function
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
