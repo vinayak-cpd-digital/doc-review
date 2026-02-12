@@ -42,7 +42,7 @@ export default function FileTabs({ files, activeIndex, onSelectFile, onRemoveFil
         <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           {files.map((fileData, index) => {
             const isActive = index === activeIndex;
-            const stats = calculateStats(fileData.parsed.review);
+            const stats = calculateStats(fileData.parsed?.review ?? []);
             const key = fileData.runId || `${fileData.fileName}-${index}`;
             
             return (
