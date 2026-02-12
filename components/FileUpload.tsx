@@ -1,6 +1,12 @@
 "use client";
 
-import { Upload, Loader2, CheckCircle, AlertCircle, Download } from "lucide-react";
+import {
+  Upload,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Download,
+} from "lucide-react";
 import { useState, useRef } from "react";
 import toast from "react-hot-toast";
 import { BatchApiResponse, FileData } from "@/lib/types";
@@ -10,7 +16,10 @@ interface FileUploadProps {
   apiResponse: FileData[] | null;
 }
 
-export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadProps) {
+export default function FileUpload({
+  onUploadSuccess,
+  apiResponse,
+}: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -25,20 +34,20 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
 
     // Validate all files are .docx
     const fileArray = Array.from(files);
-    const invalidFiles = fileArray.filter(f => !f.name.endsWith(".docx"));
-    
-    if (invalidFiles.length > 0) {
-      const errorMessage = "Please upload only .docx files";
-      setError(errorMessage);
-      toast.error(errorMessage);
-      return;
-    }
+    const invalidFiles = fileArray.filter((f) => !f.name.endsWith(".docx"));
+
+    // if (invalidFiles.length > 0) {
+    //   const errorMessage = "Please upload only .docx files";
+    //   setError(errorMessage);
+    //   toast.error(errorMessage);
+    //   return;
+    // }
 
     setIsUploading(true);
 
     try {
       const formData = new FormData();
-      fileArray.forEach(file => {
+      fileArray.forEach((file) => {
         formData.append("files", file);
       });
 
@@ -55,7 +64,7 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
 
       if (data.status === "success" && data.results) {
         setSuccess(true);
-        
+
         // Map results to FileData with actual File objects and complete batch result
         const filesData: FileData[] = data.results.map((result, index) => ({
           file: fileArray[index],
@@ -66,9 +75,9 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
         }));
 
         onUploadSuccess(filesData);
-        
+
         toast.success(
-          `${fileArray.length} file${fileArray.length > 1 ? 's' : ''} analyzed successfully!`
+          `${fileArray.length} file${fileArray.length > 1 ? "s" : ""} analyzed successfully!`,
         );
 
         // Clear success message after 3 seconds
@@ -77,7 +86,8 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
         throw new Error("Analysis failed");
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to analyze documents";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to analyze documents";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -92,10 +102,13 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
     }
 
     // Filter only approved files
-    const approvedFiles = apiResponse.filter(file => file.isApproved === true);
+    const approvedFiles = apiResponse.filter(
+      (file) => file.isApproved === true,
+    );
 
     if (approvedFiles.length === 0) {
-      const errorMessage = "No approved files to export. Please approve at least one file.";
+      const errorMessage =
+        "No approved files to export. Please approve at least one file.";
       setError(errorMessage);
       toast.error(errorMessage);
       return;
@@ -109,7 +122,9 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
       const exportPayload = {
         additionalProp1: {
           status: "success",
-          results: approvedFiles.map(file => file.batchResult).filter(Boolean),
+          results: approvedFiles
+            .map((file) => file.batchResult)
+            .filter(Boolean),
         },
       };
 
@@ -127,7 +142,7 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
 
       // Get the blob from response
       const blob = await response.blob();
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -139,11 +154,12 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
       document.body.removeChild(a);
 
       toast.success(
-        `Excel report exported successfully! (${approvedFiles.length} approved file${approvedFiles.length > 1 ? 's' : ''})`
+        `Excel report exported successfully! (${approvedFiles.length} approved file${approvedFiles.length > 1 ? "s" : ""})`,
       );
     } catch (err) {
       console.error("Export error:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to export report";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to export report";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -170,7 +186,7 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
       <input
         ref={fileInputRef}
         type="file"
-        accept=".docx"
+        accept=".pdf,.doc,.docx"
         multiple
         onChange={(e) => handleFileSelect(e.target.files)}
         className="hidden"
@@ -185,8 +201,8 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
           isUploading
             ? "bg-blue-400 cursor-not-allowed"
             : success
-            ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-            : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
         } text-white shadow-lg hover:shadow-xl disabled:shadow-md transform hover:scale-[1.02] active:scale-[0.98]`}
       >
         {isUploading ? (
@@ -210,16 +226,22 @@ export default function FileUpload({ onUploadSuccess, apiResponse }: FileUploadP
       {/* Export Button - Only enabled when there are approved files */}
       <button
         onClick={handleExport}
-        disabled={isExporting || !apiResponse || apiResponse.filter(f => f.isApproved).length === 0}
+        disabled={
+          isExporting ||
+          !apiResponse ||
+          apiResponse.filter((f) => f.isApproved).length === 0
+        }
         className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
-          apiResponse && apiResponse.filter(f => f.isApproved).length > 0 && !isExporting
+          apiResponse &&
+          apiResponse.filter((f) => f.isApproved).length > 0 &&
+          !isExporting
             ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             : "bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-sm"
         }`}
         title={
-          !apiResponse || apiResponse.filter(f => f.isApproved).length === 0
+          !apiResponse || apiResponse.filter((f) => f.isApproved).length === 0
             ? "Please approve at least one file before exporting"
-            : `Export ${apiResponse.filter(f => f.isApproved).length} approved file(s)`
+            : `Export ${apiResponse.filter((f) => f.isApproved).length} approved file(s)`
         }
       >
         {isExporting ? (

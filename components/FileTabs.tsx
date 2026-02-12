@@ -43,10 +43,11 @@ export default function FileTabs({ files, activeIndex, onSelectFile, onRemoveFil
           {files.map((fileData, index) => {
             const isActive = index === activeIndex;
             const stats = calculateStats(fileData.parsed.review);
+            const key = fileData.runId || `${fileData.fileName}-${index}`;
             
             return (
               <button
-                key={fileData.runId}
+                key={key}
                 onClick={() => onSelectFile(index)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all min-w-fit ${
                   isActive

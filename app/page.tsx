@@ -30,7 +30,10 @@ export default function Home() {
   };
 
   const handleHighlightRequest = (text: string) => {
-    setHighlightText(text);
+    console.log("Highlight request:", text);
+    // Clear first so re-clicking the same text still triggers the useEffect
+    setHighlightText("");
+    setTimeout(() => setHighlightText(text), 0);
   };
 
   const handleApprove = () => {

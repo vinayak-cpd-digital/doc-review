@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { FileText, Loader2, ZoomIn, ZoomOut } from "lucide-react";
 import mammoth from "mammoth";
+import dynamic from "next/dynamic";
+
+const PdfViewer = dynamic(() => import("./PdfViewver"), { ssr: false });
 
 interface DocumentPreviewProps {
   file: File | null;
@@ -13,10 +16,43 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
   const [htmlContent, setHtmlContent] = useState("");
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPdf, setIsPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [numPages, setNumPages] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // useEffect(() => {
+  //   const convertDocument = async () => {
+  //     if (!file) {
+  //       setHtmlContent("");
+  //       return;
+  //     }
+
+  //     setIsLoading(true);
+  //     setError(null);
+
+  //     try {
+  //       const arrayBuffer = await file.arrayBuffer();
+  //       const result = await mammoth.convertToHtml({ arrayBuffer });
+  //       setHtmlContent(result.value);
+  //     } catch (err) {
+  //       console.error("Failed to convert document:", err);
+  //       setError("Failed to load document. Please try again.");
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
+
+  //   convertDocument();
+  // }, [file]);
+
+    useEffect(() => {
+    // Reset state when file changes
+    setIsPdf(false);
+    setHtmlContent("");
+    setError(null);
+    setNumPages(null);
+
     const convertDocument = async () => {
       if (!file) {
         setHtmlContent("");
@@ -24,9 +60,25 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
       }
 
       setIsLoading(true);
-      setError(null);
-
       try {
+        const fileName = file.name.toLowerCase();
+
+        // Handle PDF: use react-pdf to render without conversion
+        if (file.type === "application/pdf" || fileName.endsWith(".pdf")) {
+          setIsPdf(true);
+          setHtmlContent("");
+          setIsLoading(false);
+          return;
+        }
+
+        // Handle legacy .doc: upload is allowed, but preview is not supported client-side
+        if (fileName.endsWith(".doc")) {
+          setHtmlContent("");
+          setError("Preview for .doc files is not supported, but your file was uploaded successfully.");
+          return;
+        }
+
+        // Default: treat as .docx and convert via mammoth
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
         setHtmlContent(result.value);
@@ -40,7 +92,7 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
 
     convertDocument();
   }, [file]);
-
+  
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(200, prev + 25));
   };
@@ -290,26 +342,30 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
 
       {/* Document Content */}
       <div className="flex-1 overflow-auto p-6" id="document-scroll-container">
-        <div
-          className="mx-auto bg-white shadow-lg transition-all duration-200"
-          style={{
-            width: `${zoom}%`,
-            maxWidth: "850px",
-            minWidth: "400px",
-          }}
-        >
+        {isPdf ?
+          (<PdfViewer file={file} zoom={zoom} highlightText={highlightText} onLoadSuccess={setNumPages} />)
+          :
           <div
-            ref={contentRef}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-            className="prose prose-sm max-w-none p-8 
+            className="mx-auto bg-white shadow-lg transition-all duration-200"
+            style={{
+              width: `${zoom}%`,
+              maxWidth: "850px",
+              minWidth: "400px",
+            }}
+          >
+            <div
+              ref={contentRef}
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+              className="prose prose-sm max-w-none p-8 
               prose-headings:text-gray-900 prose-headings:font-bold
               prose-p:text-gray-900 prose-p:leading-relaxed
               prose-strong:text-gray-900 prose-strong:font-bold
               prose-ul:list-disc prose-ol:list-decimal
               prose-li:text-gray-900
               **:text-gray-900"
-          />
-        </div>
+            />
+          </div>
+        }
       </div>
     </div>
   );
