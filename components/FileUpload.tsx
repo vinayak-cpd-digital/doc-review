@@ -199,11 +199,16 @@ export default function FileUpload({
         disabled={isUploading}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
           isUploading
-            ? "bg-blue-400 cursor-not-allowed"
+            ? "opacity-70 cursor-not-allowed"
             : success
               ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-              : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-        } text-white shadow-lg hover:shadow-xl disabled:shadow-md transform hover:scale-[1.02] active:scale-[0.98]`}
+              : "hover:brightness-110"
+        } shadow-lg hover:shadow-xl disabled:shadow-md transform hover:scale-[1.02] active:scale-[0.98]`}
+        style={{
+          backgroundColor: success ? undefined : '#be1549',
+          color: '#fdf2f7',
+          borderColor: '#e5d0da',
+        }}
       >
         {isUploading ? (
           <>
@@ -235,9 +240,14 @@ export default function FileUpload({
           apiResponse &&
           apiResponse.filter((f) => f.isApproved).length > 0 &&
           !isExporting
-            ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            ? "shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer hover:brightness-110"
             : "bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-sm"
         }`}
+        style={{
+          backgroundColor: apiResponse && apiResponse.filter((f) => f.isApproved).length > 0 && !isExporting ? '#be1549' : undefined,
+          color: apiResponse && apiResponse.filter((f) => f.isApproved).length > 0 && !isExporting ? '#fdf2f7' : undefined,
+          borderColor: '#e5d0da',
+        }}
         title={
           !apiResponse || apiResponse.filter((f) => f.isApproved).length === 0
             ? "Please approve at least one file before exporting"

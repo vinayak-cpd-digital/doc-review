@@ -32,7 +32,10 @@ export default function SearchBar({ onSearch, placeholder = "Search..." }: Searc
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-9 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-500"
+        className="w-full pl-9 pr-9 py-1.5 border rounded-md text-sm focus:outline-none focus:ring-2 focus:border-transparent text-gray-900 placeholder:text-gray-500"
+        style={{ borderColor: '#e5d0da', outlineColor: '#be1549' }}
+        onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 2px #be154966'; }}
+        onBlur={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
       />
       {value && (
         <button

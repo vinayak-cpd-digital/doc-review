@@ -81,7 +81,8 @@ export default function ReviewCard({ field, snippet, searchTerm, isExpanded, onT
               {field.actual_content && (
                 <button
                   onClick={() => onHighlightRequest(field.actual_content)}
-                  className="ml-auto text-xs px-2 py-1 rounded-md bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-semibold transition-colors flex items-center gap-1 border border-yellow-300"
+                  className="ml-auto text-xs px-2 py-1 rounded-md font-semibold transition-colors flex items-center gap-1 border hover:brightness-95"
+                  style={{ backgroundColor: '#fdf2f7', color: '#be1549', borderColor: '#e5d0da' }}
                   title="Highlight in document"
                 >
                   <span>🔍</span>

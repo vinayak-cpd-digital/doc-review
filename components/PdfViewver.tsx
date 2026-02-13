@@ -119,140 +119,128 @@ export default function PdfViewer({
     }
   }, [hasTextLayer, ocrDone, ocrRunning, runOcr]);
 
-  const escapeRegex = (text: string) =>
-    text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  // ===== Scroll + DOM fallback for highlighting =====
+  // ===== DOM-based highlighting for text-layer PDFs =====
   useEffect(() => {
     if (!highlightText || numPages === 0) return;
     if (hasTextLayer === false) return;
 
-    const highlightStyle = "background-color: #fde047; padding: 0 2px; border-radius: 4px; position: relative; z-index: 10;";
+    const HL_CLASS = "pdf-search-highlight";
+    const HL_STYLE = "background-color: #fde047; padding: 0 2px; border-radius: 4px; position: relative; z-index: 10;";
 
-    const clearExisting = (container: HTMLElement) => {
-      container.querySelectorAll(".auto-highlight").forEach((el) => {
-        (el as HTMLElement).style.cssText = (el as HTMLElement).style.cssText.replace(highlightStyle, "");
-        el.classList.remove("auto-highlight", "animate-pulse");
+    const clearHighlights = (container: HTMLElement) => {
+      container.querySelectorAll(`.${HL_CLASS}`).forEach((el) => {
+        (el as HTMLElement).style.cssText = (el as HTMLElement).style.cssText.replace(HL_STYLE, "");
+        el.classList.remove(HL_CLASS, "animate-pulse");
       });
     };
 
-    const applyHighlight = (el: HTMLElement) => {
-      el.classList.add("auto-highlight");
-      el.style.cssText += highlightStyle;
+    const applyHL = (el: HTMLElement) => {
+      el.classList.add(HL_CLASS);
+      el.style.cssText += HL_STYLE;
     };
 
-    const scrollAndPulse = (el: HTMLElement) => {
+    const scrollTo = (el: HTMLElement) => {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.classList.add("animate-pulse");
       window.setTimeout(() => el.classList.remove("animate-pulse"), 1500);
     };
 
     let timeoutId: number | undefined;
+    const lowerSearch = highlightText.toLowerCase().trim();
+    if (!lowerSearch) return;
 
     const tryHighlight = (attempt: number) => {
       const container = document.getElementById("document-scroll-container");
       if (!container) return;
 
-      // First, check if customTextRenderer already injected <mark> tags
-      const mark = container.querySelector("mark") as HTMLElement | null;
-      if (mark) {
-        mark.scrollIntoView({ behavior: "smooth", block: "center" });
-        mark.style.transition = "background-color 0.3s";
-        mark.style.backgroundColor = "#f97316";
-        setTimeout(() => { mark.style.backgroundColor = "#fde047"; }, 800);
-        return;
-      }
-
-      // If no <mark> found, do DOM-based multi-span highlighting
       const allSpans = Array.from(
         container.querySelectorAll(".react-pdf__Document .textLayer span")
       ) as HTMLSpanElement[];
 
-      if (allSpans.length === 0) {
+      // Filter to leaf spans only (no child spans)
+      const leafSpans = allSpans.filter((s) => s.querySelector("span") === null && (s.textContent || "").trim().length > 0);
+
+      if (leafSpans.length === 0) {
         if (attempt < 25) timeoutId = window.setTimeout(() => tryHighlight(attempt + 1), 300);
         return;
       }
 
-      clearExisting(container);
-
-      const lowerSearch = highlightText.toLowerCase().trim();
-      if (!lowerSearch) return;
+      clearHighlights(container);
 
       // --- Strategy 1: Exact match in a single span ---
-      let exactEqual: HTMLSpanElement | null = null;
-      let firstContains: HTMLSpanElement | null = null;
-
-      for (const el of allSpans) {
+      for (const el of leafSpans) {
         const text = (el.textContent || "").toLowerCase().trim();
-        if (text === lowerSearch && !exactEqual) {
-          exactEqual = el;
-          break;
-        }
-        if (!firstContains && text.includes(lowerSearch)) {
-          firstContains = el;
+        if (text === lowerSearch) {
+          applyHL(el);
+          scrollTo(el);
+          return;
         }
       }
-
-      const bestExact = exactEqual || firstContains;
-      if (bestExact) {
-        applyHighlight(bestExact);
-        scrollAndPulse(bestExact);
-        return;
+      for (const el of leafSpans) {
+        const text = (el.textContent || "").toLowerCase().trim();
+        if (text.includes(lowerSearch)) {
+          applyHL(el);
+          scrollTo(el);
+          return;
+        }
       }
 
       // --- Strategy 2: Multi-span concatenation ---
-      const leafSpans = allSpans.filter((s) => s.querySelector("span") === null);
-      const spanTexts = leafSpans.map((el) => ({
+      // Build an array of {el, text} for leaf spans, then slide a window
+      const spanData = leafSpans.map((el) => ({
         el,
-        lower: (el.textContent || "").toLowerCase().trim(),
-        raw: (el.textContent || "").toLowerCase(),
+        text: (el.textContent || "").toLowerCase(),
+        trimmed: (el.textContent || "").toLowerCase().trim(),
       }));
 
-      for (let i = 0; i < spanTexts.length; i++) {
+      for (let i = 0; i < spanData.length; i++) {
         let concatSpace = "";
         let concatNoSpace = "";
-        let concatRaw = "";
-        for (let j = i; j < spanTexts.length && j < i + 15; j++) {
-          concatSpace += (j > i ? " " : "") + spanTexts[j].lower;
-          concatNoSpace += spanTexts[j].lower;
-          concatRaw += spanTexts[j].raw;
-          if (concatSpace.includes(lowerSearch) || concatNoSpace.includes(lowerSearch) || concatRaw.includes(lowerSearch)) {
-            for (let k = i; k <= j; k++) applyHighlight(spanTexts[k].el);
-            scrollAndPulse(spanTexts[i].el);
+        for (let j = i; j < spanData.length && j < i + 30; j++) {
+          concatSpace += (j > i ? " " : "") + spanData[j].trimmed;
+          concatNoSpace += spanData[j].trimmed;
+          if (concatSpace.includes(lowerSearch) || concatNoSpace.includes(lowerSearch)) {
+            // Highlight only spans i..j
+            for (let k = i; k <= j; k++) applyHL(spanData[k].el);
+            scrollTo(spanData[i].el);
             return;
           }
         }
       }
 
-      // --- Strategy 3: Word-based fuzzy match ---
-      const normalizeText = (str: string) =>
-        str.toLowerCase().replace(/\s+/g, " ").replace(/[^\w\s]/g, "").trim();
-      const searchWords = normalizeText(highlightText).split(" ").filter((w) => w.length > 1);
+      // --- Strategy 3: Fuzzy — find the best contiguous window matching the most search words ---
+      const searchWords = lowerSearch.split(/\s+/).filter((w) => w.length >= 2);
+      if (searchWords.length >= 2) {
+        let bestScore = 0;
+        let bestRange: [number, number] | null = null;
 
-      if (searchWords.length > 0) {
-        for (let i = 0; i < spanTexts.length; i++) {
-          const matchedSet = new Set<string>();
-          let lastJ = i;
-          for (let j = i; j < spanTexts.length && j < i + searchWords.length + 5; j++) {
-            const norm = normalizeText(spanTexts[j].lower);
-            if (norm) {
-              for (const w of searchWords) {
-                if (norm.includes(w)) matchedSet.add(w);
-              }
+        for (let i = 0; i < spanData.length; i++) {
+          const matched = new Set<string>();
+          for (let j = i; j < spanData.length && j < i + searchWords.length + 8; j++) {
+            const norm = spanData[j].trimmed;
+            for (const w of searchWords) {
+              if (norm.includes(w)) matched.add(w);
             }
-            lastJ = j;
-            if (matchedSet.size === searchWords.length) {
-              for (let k = i; k <= lastJ; k++) applyHighlight(spanTexts[k].el);
-              scrollAndPulse(spanTexts[i].el);
-              return;
+            if (matched.size > bestScore) {
+              bestScore = matched.size;
+              bestRange = [i, j];
             }
+            if (matched.size === searchWords.length) break;
           }
+          if (bestScore === searchWords.length) break;
+        }
+
+        // Only highlight if we matched at least 60% of search words
+        if (bestRange && bestScore >= Math.ceil(searchWords.length * 0.6)) {
+          for (let k = bestRange[0]; k <= bestRange[1]; k++) applyHL(spanData[k].el);
+          scrollTo(spanData[bestRange[0]].el);
+          return;
         }
       }
     };
 
-    // Wait for text layer to render (customTextRenderer needs time to inject <mark> tags)
-    timeoutId = window.setTimeout(() => tryHighlight(0), 500);
+    // Wait for text layer to render
+    timeoutId = window.setTimeout(() => tryHighlight(0), 400);
 
     return () => {
       if (timeoutId) window.clearTimeout(timeoutId);
@@ -277,12 +265,13 @@ export default function PdfViewer({
     if (!highlightText || ocrWords.length === 0) return [];
 
     const lowerSearch = highlightText.toLowerCase().trim();
-    const searchWords = lowerSearch.split(/\s+/);
+    const searchWords = lowerSearch.split(/\s+/).filter((w) => w.length >= 3);
     const highlights: { pageIndex: number; bbox: { x0: number; y0: number; x1: number; y1: number } }[] = [];
 
+    // Strategy 1: Exact phrase match via sliding window
     for (let i = 0; i < ocrWords.length; i++) {
       let concat = "";
-      for (let j = i; j < ocrWords.length && j < i + searchWords.length + 5; j++) {
+      for (let j = i; j < ocrWords.length && j < i + searchWords.length + 10; j++) {
         concat += (j > i ? " " : "") + ocrWords[j].text.toLowerCase();
         if (concat.includes(lowerSearch)) {
           const matchedWords = ocrWords.slice(i, j + 1);
@@ -297,6 +286,20 @@ export default function PdfViewer({
       }
     }
 
+    // Strategy 2: Match individual words and highlight each one
+    if (searchWords.length > 0) {
+      for (const word of ocrWords) {
+        const ocrLower = word.text.toLowerCase();
+        for (const sw of searchWords) {
+          if (ocrLower.includes(sw) || sw.includes(ocrLower)) {
+            highlights.push({ pageIndex: word.pageIndex, bbox: word.bbox });
+            break;
+          }
+        }
+      }
+    }
+
+    // Strategy 3: Single word fallback
     if (highlights.length === 0) {
       for (const word of ocrWords) {
         if (word.text.toLowerCase().includes(lowerSearch)) {
@@ -346,18 +349,6 @@ export default function PdfViewer({
                 scale={zoom / 100}
                 renderTextLayer={true}
                 renderAnnotationLayer={false}
-                customTextRenderer={
-                  highlightText
-                    ? ({ str }) => {
-                        const escaped = escapeRegex(highlightText);
-                        const regex = new RegExp(`(${escaped})`, "gi");
-                        return str.replace(
-                          regex,
-                          `<mark style="background-color: #fde047; padding: 0 2px; border-radius: 3px;">$1</mark>`
-                        );
-                      }
-                    : undefined
-                }
               />
               {/* OCR highlight overlays for image-based PDFs */}
               {hasTextLayer === false &&
@@ -394,3 +385,4 @@ export default function PdfViewer({
     </div>
   );
 }
+

@@ -295,7 +295,7 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
     return (
       <div className="flex items-center justify-center h-full bg-white">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-blue-600" />
+          <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin" style={{ color: '#be1549' }} />
           <p className="text-gray-600">Converting document...</p>
         </div>
       </div>
@@ -321,7 +321,8 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
           <button
             onClick={handleZoomOut}
             disabled={zoom <= 50}
-            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:brightness-95"
+            style={{ color: '#be1549' }}
             title="Zoom Out"
           >
             <ZoomOut size={18} />
@@ -332,7 +333,8 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
           <button
             onClick={handleZoomIn}
             disabled={zoom >= 200}
-            className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:brightness-95"
+            style={{ color: '#be1549' }}
             title="Zoom In"
           >
             <ZoomIn size={18} />

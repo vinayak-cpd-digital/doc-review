@@ -164,7 +164,8 @@ export default function ReviewInterface({
           <div className="flex items-center gap-2">
             <button
               onClick={handleExpandAll}
-              className="px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 font-medium text-xs transition-colors flex items-center gap-1.5 text-gray-900"
+              className="px-3 py-1.5 rounded-md border font-medium text-xs transition-colors flex items-center gap-1.5 hover:brightness-95"
+              style={{ backgroundColor: '#fdf2f7', color: '#be1549', borderColor: '#e5d0da' }}
             >
               {expandAll ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
               {expandAll ? "Collapse" : "Expand"}
@@ -177,9 +178,14 @@ export default function ReviewInterface({
                 disabled={isApproved}
                 className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
                   isApproved
-                    ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white cursor-default shadow-md"
-                    : "bg-white border-2 border-green-600 text-green-700 hover:bg-green-50 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+                    ? "cursor-default shadow-md"
+                    : "border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
                 }`}
+                style={{
+                  backgroundColor: isApproved ? '#be1549' : '#fdf2f7',
+                  color: isApproved ? '#fdf2f7' : '#be1549',
+                  borderColor: '#be1549',
+                }}
               >
                 <CheckCircle size={14} />
                 {isApproved ? "Approved" : "Approve"}
@@ -189,9 +195,10 @@ export default function ReviewInterface({
                 disabled={!isApproved}
                 className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
                   !isApproved
-                    ? "bg-white border-2 border-red-600 text-red-700 hover:bg-red-50 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+                    ? "border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
                     : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-300"
                 }`}
+                style={!isApproved ? { backgroundColor: '#fdf2f7', color: '#be1549', borderColor: '#e5d0da' } : {}}
               >
                 <XCircle size={14} />
                 Reject

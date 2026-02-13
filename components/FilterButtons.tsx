@@ -24,14 +24,14 @@ export default function FilterButtons({ activeFilter, onFilterChange, counts }: 
         
         const colorClasses: Record<"gray" | "green" | "red", string> = {
           gray: isActive
-            ? "bg-gray-600 text-white border-gray-600"
-            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50",
+            ? ""
+            : "bg-white text-gray-700 hover:bg-gray-50",
           green: isActive
-            ? "bg-green-600 text-white border-green-600"
-            : "bg-white text-green-700 border-green-300 hover:bg-green-50",
+            ? ""
+            : "bg-white text-green-700 hover:bg-green-50",
           red: isActive
-            ? "bg-red-600 text-white border-red-600"
-            : "bg-white text-red-700 border-red-300 hover:bg-red-50",
+            ? ""
+            : "bg-white text-red-700 hover:bg-red-50",
         };
 
         return (
@@ -41,6 +41,7 @@ export default function FilterButtons({ activeFilter, onFilterChange, counts }: 
             className={`px-3 py-1.5 rounded-md border font-medium text-xs transition-colors ${
               colorClasses[button.color]
             }`}
+            style={isActive ? { backgroundColor: '#be1549', color: '#fdf2f7', borderColor: '#be1549' } : { borderColor: '#e5d0da' }}
           >
             {button.label}
             <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-white/20 text-xs font-semibold">

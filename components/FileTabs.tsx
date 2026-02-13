@@ -51,20 +51,23 @@ export default function FileTabs({ files, activeIndex, onSelectFile, onRemoveFil
                 onClick={() => onSelectFile(index)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all min-w-fit ${
                   isActive
-                    ? "bg-blue-50 border-blue-500 shadow-md"
+                    ? "shadow-md"
                     : "bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
                 }`}
+                style={isActive ? { backgroundColor: '#fdf2f7', borderColor: '#be1549' } : { borderColor: '#e5d0da' }}
               >
-                <FileText size={16} className={isActive ? "text-blue-600" : "text-gray-600"} />
+                <FileText size={16} className={isActive ? "" : "text-gray-600"} style={isActive ? { color: '#be1549' } : {}} />
                 <div className="flex flex-col items-start">
                   <span className={`text-sm font-semibold truncate max-w-[200px] ${
-                    isActive ? "text-blue-900" : "text-gray-700"
-                  }`}>
+                    isActive ? "font-bold" : "text-gray-700"
+                  }`}
+                  style={isActive ? { color: '#be1549' } : {}}>
                     {fileData.fileName}
                   </span>
                   <span className={`text-xs ${
-                    isActive ? "text-blue-600" : "text-gray-500"
-                  }`}>
+                    isActive ? "" : "text-gray-500"
+                  }`}
+                  style={isActive ? { color: '#be1549' } : {}}>
                     {stats.compliant}/{stats.total} compliant
                   </span>
                 </div>

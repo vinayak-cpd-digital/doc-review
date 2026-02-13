@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
                     field: "Name (Parties)",
                     // actual_content:
                     //   "This Agreement is made between The Riverside Hotel, PQR, located at 987 Lakeview Ave, PQR 560011 (the “Hotel”) and SkyFleet Airways, Inc., located at 2410 Horizon Park, Suite 400, Austin",
-                    // actual_content: "Ramesh Patil",
-                    actual_content: "Your ordered Aadhaar PVC Card will be printed within 5 working days by UIDAI and will be handed over to India Post. India post will deliver the Aadhaar PVC Card by Speed Post as per their norms/T&C at your registered address in Aadhaar.",
+                    // actual_content: "Aadhar is unique and secure",
+                    actual_content: "Your order Aadhaar PVC card , request is successfully placed.",
                     compliant: "Y",
                     comment: "Both parties' names are clearly stated.",
                   },
@@ -594,3 +594,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
