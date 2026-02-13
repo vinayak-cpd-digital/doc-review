@@ -71,6 +71,7 @@ export default function FileUpload({
           fileName: result.file_name,
           parsed: result.output_parsed,
           runId: result.run_id,
+          translatedFilePath: result.file, // Path to translated text file from backend
           batchResult: result, // Store complete batch result for export
         }));
 

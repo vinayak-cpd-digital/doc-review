@@ -1,0 +1,114 @@
+Corporate Headquarters:
+1900 East Golf Road Suite M150 Schaumburg, IL 60173 USA ____ _____
+TAConnections.com/ Toll Free: +1 800.642.7310 Hotel Initials TA Initials
+Sun Country Rate Agreement
+# HOTEL INFORMATION
+1
+Hotel Name
+ELLIS HOTEL, A TRIBUTE HOTEL BY MARRIOTT
+SALES CONTACT: Raleih Bennett
+PHONE: 859-629-2324
+FAX:
+2
+Front Desk #
+404-523-5155
+EMAIL: rbennett@jacaruso.com
+Front Desk Fax #
+404-525-7872
+ACCOUNTING CONTACT: Scot Gladstone
+Front Desk Email
+ellisfrontdesk@colwenhotels.com
+PHONE 678-651-2760
+FAX 404-525-7872
+EMAIL: Scot.Gladstone@colwenhotels.com
+3
+Address
+176 Peachtree Street NW
+City: Atlanta
+State: GA
+Zip: 30303
+4
+Hotel Sabre ID
+0081439
+Country: USA
+5
+Airport Code
+ATL
+GDS RATE LOADING INSTRUCTIONS
+IATA Code: 33-6 99584- Sabre
+Sabre Pseudo Code: 6OSB (6 Oscar/ Sam/ Bravo)
+Sabre Rate Code for Loading: S6N
+6
+IATA
+14528231
+7
+Worldspan
+Worldspan Pseudo Code: SAV
+Worldspan Rate Code: S6N
+The term of this agreement shall commence on above start date for a period of one year and shall renew automatically each year unless Hotel gives written notice to TA Connections 30 days prior to expiration.
+BENEFITS PROVIDED BY HOTEL
+Check all that apply:
+Free Local Calls
+X
+Distance to Airport
+10 MILES
+Food Discount _______%
+Free 800 calls
+X
+Free Airport Van Svc.
+Alcoholic Bev Discount ________ %
+Free Guest Room Internet
+X
+Van Service Hours
+Non Alcoholic Bev Discount ________%
+Complimentary Business Ctr.
+X
+Free FBO Van Svc.
+(Private Jet Terminal)
+Free Breakfast
+Brand Points Awarded
+X
+Free Local Van Svc. (note miles)
+Free Grab & Go
+Onsite Guest Laundry
+Complimentary Parking
+Hotel shall indemnify and hold harmless TA Connections IL, LLC d/b/a TA Connections, its agents, officers, directors, employees, stockholders, and any affiliate named under this Agreement for any liabilities, costs, damages, fines, and expenses of any kind. Rate is under the basis of Defined Viewership purposes, only to be provided to and booked by TA Connections clientele and not to be displayed to the general public. This agreement is entered into by an authorized signatory of Hotel and will survive any changes to Management or ownership of Hotel.
+Sun Country Rate Start Date End Date Tax % LRA Last Room Ava. Room Type Will load to GDS Commission
+$139- LRA
+$109- Non-LRA
+3/11/2024
+3/11/2025
+16.9% + $5.00
+YES at $139
+$109 Non LRA
+ROH
+YES
+10% Cancellation Policy: Reservation is cancelable prior to 6 p.m. on date of arrival with no penalty. Rate is based on 11 am check in, 2 pm check out. Hotel will not charge for no shows unless the hotel is at 100% occupancy
+No Walk Policy - Hotel agrees not to walk or displace an airline employee to another property unless Airline agrees to said move in writing two (2) weeks in advance of arrival date. If Hotel does not give prior notice of walks, displacements and relocations, room and tax charges at displaced hotel will be the sole responsibility of Hotel and hotel will not be paid for the room night at either location for this airline employee (the “Unauthorized Displacements”). Hotel shall immediately pay Airline damages in the amount of four (4) times the cost of the displaced room nights as per the contracted rate with the Hotel.
+The parties agree that under no circumstance shall the hotel be permitted to bill Sun Country Airlines Airline Services, LLC, for previously un-submitted hotel charges more than ninety (90) days after the actual date of occupancy
+Black out dates – 2024 July 15-18, August 29-September 1, August 20-23, December 20
+2025-January 14-19, January 27-29
+Commission
+1. Hotel agrees to pay TA CONNECTIONS a 10% commission per room night charged for all rooms utilized by the airline and secured by TA CONNECTIONS for as long as Airline occupies rooms at Hotel. The service fee is paid by hotel to TA CONNECTIONS and not added to the room rate. This commission is for services rendered, including, but are not limited to, some or all of: locating available room allotments, introducing the hotel and airline to each other, negotiating rates, negotiating services and transportation, arranging final contracts, arranging site inspections for airline and union personnel, advising on bid proposals prepared on behalf of the hotel for consideration by the airline, meeting and communicating with both airline and hotel staff for the purpose of submitting and bringing the contract to a close on behalf of both parties, assisting in resolving contract details, initiating an understanding of both parties' needs and limitations for the crew accommodations and provision of related services, finalizing terms and conditions, services, schedules, room allotments and rates for the contract, billing and reconciliation, monitoring services provided to the airline, acting on behalf of airline and hotel to resolve any contract or service problem during the term of the contract, and initiating renewal contract negotiations.
+2. Late Payments: Any unpaid commission is subject to a late fee of 1.5% per month for any unpaid balance. If TA CONNECTIONS engages an attorney to advise TA CONNECTIONS in connection with any late commission payment hereunder, the hotel will reimburse TA CONNECTIONS promptly upon request for all reasonable attorneys' and other reasonable expenses incurred by TA CONNECTIONS in collecting any amount due
+Please initial to confirm you agree to all the crew requirements:
+Hotel Agrees:
+⎯
+All room thermostats will allow to select any temperature between 65 degrees F and 85 degrees F
+⎯
+To have sidewalks/crosswalks to walk within a one mile radius or an on demand shuttle to dining and entertainment options
+⎯
+Crew rooms will not be on ground level and well away from outside entrances
+⎯
+Crew rooms will all have interior corridors
+⎯
+All crew rooms will be non smoking
+⎯
+All crew rooms will have a telephone and TV
+TA Connections IL, LLC HOTEL: ELLIS HOTEL, A TRIBUTE HOTEL BY MARRIOTT
+d/b/a TA Connections:
+Name: Maria Ellie Maldonado3/13/2024 Name: Raleih Bennett
+Title: Senior Director Client Services Title: Regional Director of Sales
+Date: 3/13/2024 Date: 3/13/2024
+_______________________________________________ _____________________________________________
+Signature Signature

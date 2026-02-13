@@ -15,6 +15,7 @@ export interface BatchResult {
   status: "success" | "error";
   run_id: string;
   file_name: string;
+  file?: string; // Path to translated text file from backend
   output_raw: string;
   output_parsed: OutputParsed;
 }
@@ -24,6 +25,7 @@ export interface FileData {
   fileName: string;
   parsed: OutputParsed;
   runId: string;
+  translatedFilePath?: string; // Path to translated text file from API
   isApproved?: boolean;
   batchResult?: BatchResult; // Store the complete batch result for export
 }

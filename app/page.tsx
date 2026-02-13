@@ -5,12 +5,17 @@ import FileUpload from "@/components/FileUpload";
 import DocumentPreview from "@/components/DocumentPreview";
 import ReviewInterface from "@/components/ReviewInterface";
 import FileTabs from "@/components/FileTabs";
+import ActualFilePopup from "@/components/ActualFilePopup";
 import { FileData } from "@/lib/types";
+import { Eye } from "lucide-react";
+import Image from "next/image";
+import logo from "@/public/copperpod-logo.png";
 
 export default function Home() {
   const [filesData, setFilesData] = useState<FileData[]>([]);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [highlightText, setHighlightText] = useState<string>("");
+  const [showActualFile, setShowActualFile] = useState(false);
 
   const handleUploadSuccess = (files: FileData[]) => {
     setFilesData(files);
@@ -21,7 +26,7 @@ export default function Home() {
   const handleRemoveFile = (index: number) => {
     const newFiles = filesData.filter((_, i) => i !== index);
     setFilesData(newFiles);
-    
+
     if (newFiles.length === 0) {
       setActiveFileIndex(0);
     } else if (activeFileIndex >= newFiles.length) {
@@ -56,12 +61,43 @@ export default function Home() {
 
   const currentFile = filesData[activeFileIndex] || null;
 
+  // Close popup when switching tabs so it doesn't show a stale file
+  const handleSelectFile = (index: number) => {
+    setActiveFileIndex(index);
+    setShowActualFile(false);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm px-6 py-3.5 flex items-center justify-between z-10">
+        {/* Left: Logo + Title */}
+        <div className="flex items-center gap-3">
+          <Image
+            src={logo} // Adjust path if your logo file lives elsewhere
+            alt="Copperpod Logo"
+            width={240}
+            height={82}
+            className="h-8 w-auto object-contain"
+            priority
+          />
+        </div>
+        <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
+          Hotel Agreement Review System
+        </h1>
         <div className="flex items-center gap-4">
-          <FileUpload 
+          {currentFile && (
+            <button
+              onClick={() => setShowActualFile(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm transition-all border hover:brightness-95 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+              style={{ backgroundColor: '#fdf2f7', color: '#be1549', borderColor: '#e5d0da' }}
+              title="View the original uploaded file"
+            >
+              <Eye size={16} />
+              <span>Show Actual File</span>
+            </button>
+          )}
+          <FileUpload
             onUploadSuccess={handleUploadSuccess}
             apiResponse={filesData}
           />
@@ -69,13 +105,12 @@ export default function Home() {
             <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
               <span className="text-base">📄</span>
               <span className="font-semibold">{filesData.length}</span>
-              <span className="font-medium">file{filesData.length > 1 ? 's' : ''} uploaded</span>
+              <span className="font-medium">
+                file{filesData.length > 1 ? "s" : ""} uploaded
+              </span>
             </div>
           )}
         </div>
-        <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
-          Hotel Agreement Review System
-        </h1>
       </header>
 
       {/* File Tabs */}
@@ -83,7 +118,7 @@ export default function Home() {
         <FileTabs
           files={filesData}
           activeIndex={activeFileIndex}
-          onSelectFile={setActiveFileIndex}
+          onSelectFile={handleSelectFile}
           onRemoveFile={handleRemoveFile}
         />
       )}
@@ -92,15 +127,16 @@ export default function Home() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Document Preview */}
         <div className="w-1/2 border-r border-gray-200">
-          <DocumentPreview 
-            file={currentFile?.file || null} 
-            highlightText={highlightText} 
+          <DocumentPreview
+            file={currentFile?.file || null}
+            highlightText={highlightText}
+            translatedFilePath={currentFile?.translatedFilePath}
           />
         </div>
 
         {/* Right Panel - Review Interface */}
         <div className="w-1/2">
-          <ReviewInterface 
+          <ReviewInterface
             data={currentFile?.parsed || null}
             onApprove={handleApprove}
             onReject={handleReject}
@@ -109,6 +145,13 @@ export default function Home() {
           />
         </div>
       </div>
+      {/* Actual File Popup */}
+      {showActualFile && currentFile && (
+        <ActualFilePopup
+          file={currentFile.file}
+          onClose={() => setShowActualFile(false)}
+        />
+      )}
     </div>
   );
 }

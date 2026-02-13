@@ -10,16 +10,21 @@ const PdfViewer = dynamic(() => import("./PdfViewver"), { ssr: false });
 interface DocumentPreviewProps {
   file: File | null;
   highlightText?: string;
+  translatedFilePath?: string; // Path to translated text file from API
 }
 
-export default function DocumentPreview({ file, highlightText = "" }: DocumentPreviewProps) {
+export default function DocumentPreview({ file, highlightText = "", translatedFilePath }: DocumentPreviewProps) {
   const [htmlContent, setHtmlContent] = useState("");
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
   const [isPdf, setIsPdf] = useState(false);
+  const [isTextFile, setIsTextFile] = useState(false);
+  const [textContent, setTextContent] = useState("");
+  const [translatedFile, setTranslatedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLPreElement>(null);
 
   // useEffect(() => {
   //   const convertDocument = async () => {
@@ -46,14 +51,60 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
   //   convertDocument();
   // }, [file]);
 
-    useEffect(() => {
-    // Reset state when file changes
+  // Fetch translated file when translatedFilePath changes
+  useEffect(() => {
+    // Reset state
     setIsPdf(false);
+    setIsTextFile(false);
+    setTextContent("");
     setHtmlContent("");
     setError(null);
     setNumPages(null);
+    setTranslatedFile(null);
 
-    const convertDocument = async () => {
+    const loadDocument = async () => {
+      // If we have a translated file path, fetch and display that
+      if (translatedFilePath) {
+        setIsLoading(true);
+        try {
+          const res = await fetch(`/api/serve-file?path=${encodeURIComponent(translatedFilePath)}`);
+          if (!res.ok) throw new Error("Failed to fetch translated file");
+
+          const contentType = res.headers.get("Content-Type") || "";
+          const ext = translatedFilePath.split(".").pop()?.toLowerCase() || "";
+
+          if (contentType.includes("text/plain") || ext === "txt") {
+            // Plain text file
+            const text = await res.text();
+            setIsTextFile(true);
+            setTextContent(text);
+          } else if (contentType.includes("application/pdf") || ext === "pdf") {
+            // PDF file — create a File object for PdfViewer
+            const blob = await res.blob();
+            const pdfFile = new File([blob], translatedFilePath.split("/").pop() || "translated.pdf", { type: "application/pdf" });
+            setTranslatedFile(pdfFile);
+            setIsPdf(true);
+          } else if (ext === "docx") {
+            // DOCX — convert via mammoth
+            const arrayBuffer = await res.arrayBuffer();
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            setHtmlContent(result.value);
+          } else {
+            // Try as text fallback
+            const text = await res.text();
+            setIsTextFile(true);
+            setTextContent(text);
+          }
+        } catch (err) {
+          console.error("Failed to load translated file:", err);
+          setError("Failed to load translated file.");
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // Fallback: show the uploaded file directly (original behavior)
       if (!file) {
         setHtmlContent("");
         return;
@@ -63,7 +114,6 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
       try {
         const fileName = file.name.toLowerCase();
 
-        // Handle PDF: use react-pdf to render without conversion
         if (file.type === "application/pdf" || fileName.endsWith(".pdf")) {
           setIsPdf(true);
           setHtmlContent("");
@@ -71,14 +121,12 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
           return;
         }
 
-        // Handle legacy .doc: upload is allowed, but preview is not supported client-side
         if (fileName.endsWith(".doc")) {
           setHtmlContent("");
           setError("Preview for .doc files is not supported, but your file was uploaded successfully.");
           return;
         }
 
-        // Default: treat as .docx and convert via mammoth
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
         setHtmlContent(result.value);
@@ -90,8 +138,8 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
       }
     };
 
-    convertDocument();
-  }, [file]);
+    loadDocument();
+  }, [file, translatedFilePath]);
   
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(200, prev + 25));
@@ -103,9 +151,10 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
 
   // Handle text highlighting and scrolling with fuzzy search
   useEffect(() => {
-    if (!highlightText || !contentRef.current) return;
+    const containerEl = contentRef.current || textRef.current;
+    if (!highlightText || !containerEl) return;
 
-    const container = contentRef.current;
+    const container = containerEl;
     
     // Remove previous highlights
     const existingHighlights = container.querySelectorAll('.auto-highlight');
@@ -279,7 +328,7 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
     }
   }, [highlightText, htmlContent]);
 
-  if (!file) {
+  if (!file && !translatedFilePath) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-center text-gray-400">
@@ -316,7 +365,9 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
     <div className="h-full flex flex-col bg-gray-100">
       {/* Zoom Controls */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b">
-        <h3 className="text-sm font-medium text-gray-700">Document Preview</h3>
+        <h3 className="text-sm font-medium text-gray-700">
+          {translatedFilePath ? "Translated Document" : "Document Preview"}
+        </h3>
         <div className="flex items-center gap-3">
           <button
             onClick={handleZoomOut}
@@ -344,9 +395,31 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
 
       {/* Document Content */}
       <div className="flex-1 overflow-auto p-6" id="document-scroll-container">
-        {isPdf ?
-          (<PdfViewer file={file} zoom={zoom} highlightText={highlightText} onLoadSuccess={setNumPages} />)
-          :
+        {isPdf ? (
+          <PdfViewer
+            file={translatedFile || file!}
+            zoom={zoom}
+            highlightText={highlightText}
+            onLoadSuccess={setNumPages}
+          />
+        ) : isTextFile ? (
+          <div
+            className="mx-auto bg-white shadow-lg transition-all duration-200"
+            style={{
+              width: `${zoom}%`,
+              maxWidth: "850px",
+              minWidth: "400px",
+            }}
+          >
+            <pre
+              ref={textRef}
+              className="p-8 text-sm text-gray-900 leading-relaxed whitespace-pre-wrap font-mono"
+              style={{ fontSize: `${zoom * 0.14}px` }}
+            >
+              {textContent}
+            </pre>
+          </div>
+        ) : (
           <div
             className="mx-auto bg-white shadow-lg transition-all duration-200"
             style={{
@@ -367,7 +440,7 @@ export default function DocumentPreview({ file, highlightText = "" }: DocumentPr
               **:text-gray-900"
             />
           </div>
-        }
+        )}
       </div>
     </div>
   );

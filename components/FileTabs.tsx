@@ -43,7 +43,7 @@ export default function FileTabs({ files, activeIndex, onSelectFile, onRemoveFil
           {files.map((fileData, index) => {
             const isActive = index === activeIndex;
             const stats = calculateStats(fileData.parsed?.review ?? []);
-            const key = fileData.runId || `${fileData.fileName}-${index}`;
+            const key = `${fileData.runId || fileData.fileName}-${index}`;
             
             return (
               <button
