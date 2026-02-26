@@ -1,34 +1,39 @@
-// TypeScript interfaces for the Hotel Agreement Review System
+// ======================================================
+// Hotel Agreement Review System - Type Definitions
+// ======================================================
+
+// ==============================
+// API ROOT RESPONSE
+// ==============================
 
 export interface ApiResponse {
   status: "success" | "error";
-  file_name: string;
-  output_parsed: OutputParsed;
-}
-
-export interface BatchApiResponse {
-  status: "success" | "error";
+  ocr_session_id: string;
   results: BatchResult[];
 }
+
+// ==============================
+// PER FILE RESULT
+// ==============================
 
 export interface BatchResult {
   status: "success" | "error";
   run_id: string;
   file_name: string;
-  file?: string; // Path to translated text file from backend
-  output_raw: string;
+
+  ocr_markdown?: string | null;
+  output_raw?: string;
   output_parsed: OutputParsed;
+
+  flat_rows?: FlatRow[];
+  meta?: FileMeta;
+
+  file?: string; // Optional translated file path from backend
 }
 
-export interface FileData {
-  file: File;
-  fileName: string;
-  parsed: OutputParsed;
-  runId: string;
-  translatedFilePath?: string; // Path to translated text file from API
-  isApproved?: boolean;
-  batchResult?: BatchResult; // Store the complete batch result for export
-}
+// ==============================
+// PARSED OUTPUT STRUCTURE
+// ==============================
 
 export interface OutputParsed {
   meta: DocumentMeta;
@@ -37,6 +42,10 @@ export interface OutputParsed {
   flags: Flags;
 }
 
+// ==============================
+// DOCUMENT META
+// ==============================
+
 export interface DocumentMeta {
   document_title: string;
   station_or_airport_code: string;
@@ -44,23 +53,93 @@ export interface DocumentMeta {
   airline_name: string;
 }
 
-export interface ReviewField {
-  field: string;              // Dynamic field name
-  actual_content: string;     // Extracted text
-  compliant: "Y" | "N";       // Compliance status
-  comment: string;            // Review comment
+export interface FileMeta {
+  timestamp: string;
+  file_name: string;
+  run_id: string;
 }
 
-export interface Snippet {
-  label: string;              // Section label
-  text: string;               // Full text
-  page_or_section: string;    // Location reference
+// ==============================
+// REVIEW SECTION
+// ==============================
+
+export interface ReviewField {
+  field: string;
+  actual_content: string;
+  compliant: "Y" | "N";
+  comment: string;
 }
+
+// ==============================
+// SNIPPETS SECTION
+// ==============================
+
+export interface Snippet {
+  label: string;
+  text: string;
+  page_or_section: string;
+}
+
+// ==============================
+// FLAGS SECTION
+// ==============================
 
 export interface Flags {
   missing_fields: string[];
   ambiguous_points: string[];
 }
+
+// ==============================
+// FLAT ROWS (Export Structure)
+// ==============================
+
+export interface FlatRow {
+  run_id: string;
+  file_name: string;
+  timestamp: string;
+
+  review: ReviewField[];
+  snippets: Snippet[];
+
+  "meta.document_title": string;
+  "meta.station_or_airport_code": string;
+  "meta.hotel_name": string;
+  "meta.airline_name": string;
+
+  "flags.missing_fields": string[];
+  "flags.ambiguous_points": string[];
+}
+
+// ==============================
+// OCR RESPONSE (Second API Call)
+// ==============================
+
+export interface OcrResponse {
+  status: "success" | "error";
+  ocr_session_id: string;
+  created_at: number;
+  files: Record<string, string>; // { "filename.pdf": "<html content>" }
+}
+
+// ==============================
+// UI FILE DATA (Frontend Model)
+// ==============================
+
+export interface FileData {
+  file: File;
+  fileName: string;
+  parsed: OutputParsed;
+  runId: string;
+
+  translatedFilePath?: string;
+  translatedContent?: string; // OCR HTML/markdown content to render directly
+  isApproved?: boolean;
+  batchResult?: BatchResult;
+}
+
+// ==============================
+// COMPLIANCE STATS (UI Derived)
+// ==============================
 
 export interface ComplianceStats {
   total: number;

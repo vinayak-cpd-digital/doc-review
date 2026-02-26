@@ -16,11 +16,14 @@ export default function Home() {
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [highlightText, setHighlightText] = useState<string>("");
   const [showActualFile, setShowActualFile] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [ocrSessionId, setOcrSessionId] = useState<string | null>(null);
 
-  const handleUploadSuccess = (files: FileData[]) => {
+  const handleUploadSuccess = (files: FileData[], ocrSessionId?: string) => {
     setFilesData(files);
     setActiveFileIndex(0);
     setHighlightText("");
+    if (ocrSessionId) setOcrSessionId(ocrSessionId);
   };
 
   const handleRemoveFile = (index: number) => {
@@ -131,6 +134,7 @@ export default function Home() {
             file={currentFile?.file || null}
             highlightText={highlightText}
             translatedFilePath={currentFile?.translatedFilePath}
+            translatedContent={currentFile?.translatedContent}
           />
         </div>
 

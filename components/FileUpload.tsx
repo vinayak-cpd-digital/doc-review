@@ -9,10 +9,12 @@ import {
 } from "lucide-react";
 import { useState, useRef } from "react";
 import toast from "react-hot-toast";
-import { BatchApiResponse, FileData } from "@/lib/types";
+import { FileData } from "@/lib/types";
+import { mockApiResponse } from "@/lib/mockData";
+import { mockOcrResponse } from "@/lib/mockOcrData";
 
 interface FileUploadProps {
-  onUploadSuccess: (files: FileData[]) => void;
+  onUploadSuccess: (files: FileData[], ocrSessionId?: string) => void;
   apiResponse: FileData[] | null;
 }
 
@@ -46,46 +48,43 @@ export default function FileUpload({
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      fileArray.forEach((file) => {
-        formData.append("files", file);
-      });
+      // Use mock data directly — no API call needed for now
+      // In production, replace this block with the actual API call
 
-      const response = await fetch("/api/analyze-batch", {
-        method: "POST",
-        body: formData,
-      });
+      // Step 1: Get review data from mock API response
+      const mockResults = mockApiResponse.results;
+      const ocrSessionId = mockApiResponse.ocr_session_id;
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
+      // Step 2: Map each uploaded file to its corresponding mock result + OCR content
+      const filesData: FileData[] = fileArray.map((file, index) => {
+        // Use the mock result for this file (cycle if more files than results)
+        const result = mockResults[index % mockResults.length];
 
-      const data: BatchApiResponse = await response.json();
+        // Step 3: Look up OCR translated content from mock OCR response using file_name
+        const ocrContent = mockOcrResponse.files[result.file_name] || undefined;
 
-      if (data.status === "success" && data.results) {
-        setSuccess(true);
-
-        // Map results to FileData with actual File objects and complete batch result
-        const filesData: FileData[] = data.results.map((result, index) => ({
-          file: fileArray[index],
+        return {
+          file: file,
           fileName: result.file_name,
           parsed: result.output_parsed,
-          runId: result.run_id,
-          translatedFilePath: result.file, // Path to translated text file from backend
-          batchResult: result, // Store complete batch result for export
-        }));
+          runId: result.run_id || `mock-${Date.now()}-${index}`,
+          translatedContent: ocrContent, // OCR HTML/markdown content for DocumentPreview
+          batchResult: result,
+        };
+      });
 
-        onUploadSuccess(filesData);
+      // Simulate a brief loading delay for UX
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-        toast.success(
-          `${fileArray.length} file${fileArray.length > 1 ? "s" : ""} analyzed successfully!`,
-        );
+      setSuccess(true);
+      onUploadSuccess(filesData, ocrSessionId);
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(false), 3000);
-      } else {
-        throw new Error("Analysis failed");
-      }
+      toast.success(
+        `${fileArray.length} file${fileArray.length > 1 ? "s" : ""} analyzed successfully!`,
+      );
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to analyze documents";

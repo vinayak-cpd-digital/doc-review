@@ -11,9 +11,10 @@ interface DocumentPreviewProps {
   file: File | null;
   highlightText?: string;
   translatedFilePath?: string; // Path to translated text file from API
+  translatedContent?: string; // OCR HTML/markdown content to render directly
 }
 
-export default function DocumentPreview({ file, highlightText = "", translatedFilePath }: DocumentPreviewProps) {
+export default function DocumentPreview({ file, highlightText = "", translatedFilePath, translatedContent }: DocumentPreviewProps) {
   const [htmlContent, setHtmlContent] = useState("");
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +64,28 @@ export default function DocumentPreview({ file, highlightText = "", translatedFi
     setTranslatedFile(null);
 
     const loadDocument = async () => {
+      // If we have direct OCR HTML/markdown content, render it
+      if (translatedContent) {
+        setIsLoading(true);
+        // Convert double-newline-separated blocks into paragraphs.
+        // Keep newlines inside blocks as-is — CSS white-space: pre-line on the
+        // container will render them. This preserves contiguous text nodes so
+        // the DOM-based highlighting / "Find in Document" keeps working.
+        const htmlFromContent = translatedContent
+          .split('\n\n')
+          .map(block => {
+            const trimmed = block.trim();
+            if (!trimmed) return '';
+            // Preserve anchor tags and HTML comments as-is
+            if (trimmed.startsWith('<a ') || trimmed.startsWith('<!--')) return trimmed;
+            return `<p>${trimmed}</p>`;
+          })
+          .join('\n');
+        setHtmlContent(htmlFromContent);
+        setIsLoading(false);
+        return;
+      }
+
       // If we have a translated file path, fetch and display that
       if (translatedFilePath) {
         setIsLoading(true);
@@ -139,7 +162,7 @@ export default function DocumentPreview({ file, highlightText = "", translatedFi
     };
 
     loadDocument();
-  }, [file, translatedFilePath]);
+  }, [file, translatedFilePath, translatedContent]);
   
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(200, prev + 25));
@@ -328,7 +351,7 @@ export default function DocumentPreview({ file, highlightText = "", translatedFi
     }
   }, [highlightText, htmlContent]);
 
-  if (!file && !translatedFilePath) {
+  if (!file && !translatedFilePath && !translatedContent) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-center text-gray-400">
@@ -438,6 +461,7 @@ export default function DocumentPreview({ file, highlightText = "", translatedFi
               prose-ul:list-disc prose-ol:list-decimal
               prose-li:text-gray-900
               **:text-gray-900"
+              style={{ whiteSpace: 'pre-line' }}
             />
           </div>
         )}
