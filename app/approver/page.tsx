@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   LogOut, RefreshCw, FileText, CheckCircle, XCircle, Clock,
-  AlertCircle, LayoutDashboard, ChevronRight,
+  AlertCircle, LayoutDashboard, ChevronRight, Table2, ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
 import logo from "@/public/copperpod-logo.png";
+import ApproverTablePopup from "@/components/ApproverTablePopup";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,19 @@ export default function ApproverPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SidebarSection>("dashboard");
+  const [tablePopup, setTablePopup] = useState<{ submissionId: string; fileName: string } | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Route guard
   useEffect(() => {
@@ -234,10 +248,10 @@ export default function ApproverPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
 
       {/* ── Top header bar ── */}
-      <header className="bg-white border-b border-gray-200 shrink-0 shadow-sm z-20">
+      <header className="bg-white border-b border-gray-200 shrink-0 shadow-sm z-20 sticky top-0">
         <div className="h-14 px-6 flex items-center gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <div className="rounded-lg overflow-hidden border border-gray-100 shadow-sm p-1 bg-white">
@@ -254,35 +268,55 @@ export default function ApproverPage() {
             >
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             </button>
-            {/* Avatar + logout */}
-            <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                style={{ backgroundColor: "#be1549" }}
-              >
-                {user.email[0].toUpperCase()}
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-xs font-semibold text-gray-800 max-w-[130px] truncate">{user.email}</p>
-                <p className="text-xs text-purple-600 font-medium">Approver</p>
-              </div>
+            {/* User dropdown */}
+            <div className="relative" ref={userMenuRef}>
               <button
-                onClick={handleLogout}
-                className="ml-1 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                title="Sign out"
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all"
+                title={user.email}
               >
-                <LogOut size={14} />
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ backgroundColor: '#be1549' }}>
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate hidden sm:block">{user.name.split(" ")[0]}</span>
+                <ChevronDown size={13} className={`text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                  <div className="px-4 py-3.5 border-b border-gray-100 bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0" style={{ backgroundColor: '#be1549' }}>
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <span className="mt-2.5 inline-block text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize border" style={{ backgroundColor: '#fdf2f7', color: '#be1549', borderColor: '#f5c6d3' }}>
+                      {user.role}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setShowUserMenu(false); handleLogout(); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all"
+                  >
+                    <LogOut size={15} />
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
 
-      {/* ── Body: sidebar + main ── */}
-      <div className="flex flex-1 overflow-hidden">
+        {/* ── Body: sidebar + main ── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ── Sidebar ── */}
-        <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col pt-4 pb-6">
+        <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col pt-4 pb-6 overflow-y-auto">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-5 mb-3">Navigation</p>
           <nav className="flex flex-col gap-0.5 px-3">
             {navItems.map((nav) => {
@@ -315,7 +349,7 @@ export default function ApproverPage() {
           </nav>
 
           {/* Sidebar summary stats */}
-          <div className="mt-auto px-4">
+          {/* <div className="mt-auto px-4">
             <div className="rounded-xl p-3 border border-gray-100 bg-gray-50">
               <p className="text-xs font-semibold text-gray-500 mb-2">Quick Summary</p>
               <div className="space-y-1.5">
@@ -334,7 +368,7 @@ export default function ApproverPage() {
                 ))}
               </div>
             </div>
-          </div>
+          </div> */}
         </aside>
 
         {/* ── Main content ── */}
@@ -390,6 +424,7 @@ export default function ApproverPage() {
                       onReject={() => handleDecision(item.submission_id, "rejected", item.comment)}
                       onToggleComment={() => toggleComment(item.submission_id)}
                       onCommentChange={(v) => setComment(item.submission_id, v)}
+                      onViewTable={() => setTablePopup({ submissionId: item.submission_id, fileName: item.file_name })}
                     />
                   ))}
                 </div>
@@ -398,6 +433,14 @@ export default function ApproverPage() {
           )}
         </main>
       </div>
+      {/* ── Approver Table Popup ── */}
+      {tablePopup && (
+        <ApproverTablePopup
+          submissionId={tablePopup.submissionId}
+          fileName={tablePopup.fileName}
+          onClose={() => setTablePopup(null)}
+        />
+      )}
     </div>
   );
 }
@@ -618,12 +661,14 @@ function FileCard({
   onReject,
   onToggleComment,
   onCommentChange,
+  onViewTable,
 }: {
   item: FileItemState;
   onApprove: () => void;
   onReject: () => void;
   onToggleComment: () => void;
   onCommentChange: (v: string) => void;
+  onViewTable: () => void;
 }) {
   const isLoading = item.decisionStatus === "loading";
   const isDecided = item.decisionStatus === "approved" || item.decisionStatus === "rejected";
@@ -640,48 +685,48 @@ function FileCard({
         item.decisionStatus === "rejected" ? "border-red-200" : "border-gray-200"
       }`}
     >
-      <div className="h-1 w-full shrink-0" style={{ backgroundColor: accentColor }} />
+      <div className="h-0.5 w-full shrink-0" style={{ backgroundColor: accentColor }} />
 
-      <div className="p-5 flex flex-col gap-4 flex-1">
+      <div className="px-4 py-3.5 flex flex-col gap-3 flex-1">
         {/* File icon + name */}
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "#fdf2f7" }}>
-            <FileText size={18} style={{ color: "#be1549" }} />
+        <div className="flex items-start gap-2.5">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: "#fdf2f7" }}>
+            <FileText size={14} style={{ color: "#be1549" }} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-gray-900 leading-snug break-words line-clamp-2" title={item.file_name}>
+            <p className="text-xs font-bold text-gray-900 leading-snug break-words line-clamp-2" title={item.file_name}>
               {item.file_name}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">{formatDate(item.created_at)}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(item.created_at)}</p>
           </div>
         </div>
 
-        {/* Meta */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Meta row: status badge + reviewer + id */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           {statusBadge(item.status)}
-          <span className="text-xs text-gray-400 flex items-center gap-1">
-            <span className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs">
+          <span className="text-[11px] text-gray-400 flex items-center gap-1">
+            <span className="w-3.5 h-3.5 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold" style={{ fontSize: 9 }}>
               {(item.reviewer || "r")[0].toUpperCase()}
             </span>
             {item.reviewer || "reviewer"}
           </span>
-          <span className="text-xs text-gray-300 ml-auto font-mono">{item.submission_id.slice(0, 8)}…</span>
+          <span className="text-[10px] text-gray-300 ml-auto font-mono">{item.submission_id.slice(0, 8)}…</span>
         </div>
 
         {/* Decision result banners */}
         {item.decisionStatus === "approved" && (
-          <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs font-semibold">
-            <CheckCircle size={14} /> Approved
+          <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1.5 text-[11px] font-semibold">
+            <CheckCircle size={12} /> Approved
           </div>
         )}
         {item.decisionStatus === "rejected" && (
-          <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs font-semibold">
-            <XCircle size={14} /> Rejected
+          <div className="flex items-center gap-1.5 text-red-700 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5 text-[11px] font-semibold">
+            <XCircle size={12} /> Rejected
           </div>
         )}
         {item.decisionStatus === "error" && item.decisionError && (
-          <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs">
-            <AlertCircle size={13} /> {item.decisionError}
+          <div className="flex items-center gap-1.5 text-red-600 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5 text-[11px]">
+            <AlertCircle size={12} /> {item.decisionError}
           </div>
         )}
 
@@ -692,46 +737,62 @@ function FileCard({
             onChange={(e) => onCommentChange(e.target.value)}
             placeholder="Optional comment…"
             rows={2}
-            className="w-full text-xs rounded-lg border border-gray-200 px-3 py-2 resize-none text-gray-700 focus:outline-none focus:border-rose-300 focus:ring-1 focus:ring-rose-100 transition-all"
+            className="w-full text-[11px] rounded-md border border-gray-200 px-2.5 py-1.5 resize-none text-gray-700 focus:outline-none focus:border-rose-300 focus:ring-1 focus:ring-rose-100 transition-all"
           />
         )}
 
-        {/* Action buttons */}
-        {isPending && !isDecided && (
-          <div className="flex items-center gap-2 mt-auto pt-1">
-            <button
-              onClick={onToggleComment}
-              className="p-2 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-all shrink-0"
-              title="Add comment"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </button>
-            <button
-              onClick={onReject} disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border-2 transition-all hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#fff5f5", color: "#dc2626", borderColor: "#fca5a5" }}
-            >
-              {isLoading ? <span className="animate-spin w-3 h-3 border-2 border-current border-t-transparent rounded-full inline-block" /> : <XCircle size={13} />}
-              Reject
-            </button>
-            <button
-              onClick={onApprove} disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border-2 transition-all hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#f0fdf4", color: "#16a34a", borderColor: "#86efac" }}
-            >
-              {isLoading ? <span className="animate-spin w-3 h-3 border-2 border-current border-t-transparent rounded-full inline-block" /> : <CheckCircle size={13} />}
-              Approve
-            </button>
-          </div>
-        )}
+        {/* Bottom action row — Review Table + Reject + Approve (+ comment toggle) */}
+        <div className="flex items-center gap-1.5 mt-auto pt-0.5">
+          {/* Review Table */}
+          <button
+            onClick={onViewTable}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold border transition-all hover:bg-rose-50 shrink-0"
+            style={{ color: "#be1549", borderColor: "#f5c6d3", backgroundColor: "#fdf2f7" }}
+            title="View reviewed table data"
+          >
+            <Table2 size={11} />
+            Table
+          </button>
 
-        {!isPending && !isDecided && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-auto pt-1">
-            <Clock size={12} /> Decision already recorded
-          </div>
-        )}
+          {isPending && !isDecided ? (
+            <>
+              {/* Comment toggle */}
+              <button
+                onClick={onToggleComment}
+                className={`p-1.5 rounded-md border transition-all shrink-0 ${
+                  item.commentOpen
+                    ? "border-rose-200 text-rose-400 bg-rose-50"
+                    : "border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300"
+                }`}
+                title="Add comment"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </button>
+              <button
+                onClick={onReject} disabled={isLoading}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold border transition-all hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: "#fff5f5", color: "#dc2626", borderColor: "#fca5a5" }}
+              >
+                {isLoading ? <span className="animate-spin w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full inline-block" /> : <XCircle size={11} />}
+                Reject
+              </button>
+              <button
+                onClick={onApprove} disabled={isLoading}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold border transition-all hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: "#f0fdf4", color: "#16a34a", borderColor: "#86efac" }}
+              >
+                {isLoading ? <span className="animate-spin w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full inline-block" /> : <CheckCircle size={11} />}
+                Approve
+              </button>
+            </>
+          ) : !isDecided ? (
+            <span className="text-[11px] text-gray-400 flex items-center gap-1 ml-1">
+              <Clock size={11} /> Recorded
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
   );
