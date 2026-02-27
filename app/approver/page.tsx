@@ -60,6 +60,14 @@ function formatDate(str: string) {
   }
 }
 
+function displayName(role?: string) {
+  if (!role) return "Ankith V";
+  const r = role.toLowerCase();
+  if (r === "reviewer") return "Ankith V";
+  if (r === "approver") return "Pallavi M";
+  return role;
+}
+
 // ── DonutChart ────────────────────────────────────────────────────────────────
 
 function DonutChart({ pending, approved, rejected }: { pending: number; approved: number; rejected: number }) {
@@ -706,9 +714,9 @@ function FileCard({
           {statusBadge(item.status)}
           <span className="text-[11px] text-gray-400 flex items-center gap-1">
             <span className="w-3.5 h-3.5 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold" style={{ fontSize: 9 }}>
-              {(item.reviewer || "r")[0].toUpperCase()}
+              {(displayName(item.reviewer))[0].toUpperCase()}
             </span>
-            {item.reviewer || "reviewer"}
+            {displayName(item.reviewer)}
           </span>
           <span className="text-[10px] text-gray-300 ml-auto font-mono">{item.submission_id.slice(0, 8)}…</span>
         </div>
