@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import FileUpload from "@/components/FileUpload";
 import DocumentPreview from "@/components/DocumentPreview";
@@ -12,7 +12,7 @@ import { fetchOcrContent } from "@/lib/ocrService";
 import { mockOcrResponse } from "@/lib/mockOcrData";
 import { useAuth } from "@/context/AuthContext";
 import { useMockMode } from "@/context/MockModeContext";
-import { Eye, LogOut, User as UserIcon } from "lucide-react";
+import { Eye, LogOut, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import logo from "@/public/copperpod-logo.png";
 
@@ -25,6 +25,18 @@ export default function Home() {
   const [highlightText, setHighlightText] = useState<string>("");
   const [showActualFile, setShowActualFile] = useState(false);
   const [ocrSessionId, setOcrSessionId] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Redirect to login if not authenticated
   if (!isLoading && !user) {
@@ -280,24 +292,47 @@ export default function Home() {
               title="Live API"
             />
           </div>
-          {/* User info & Logout */}
+          {/* User dropdown */}
           {user && (
-            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <UserIcon size={16} />
-                <span className="font-medium">{user.name}</span>
-                <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold capitalize" style={{ backgroundColor: '#fdf2f7', color: '#be1549' }}>
-                  {user.role}
-                </span>
-              </div>
+            <div className="relative" ref={userMenuRef}>
               <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all"
-                title="Sign out"
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all text-sm font-medium text-gray-700"
+                title={user.email}
               >
-                <LogOut size={15} />
-                <span>Logout</span>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: '#be1549' }}>
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <ChevronDown size={14} className={`transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
               </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+                  {/* User info */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ backgroundColor: '#be1549' }}>
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <span className="mt-2 inline-block text-xs px-2 py-0.5 rounded-full font-semibold capitalize" style={{ backgroundColor: '#fdf2f7', color: '#be1549' }}>
+                      {user.role}
+                    </span>
+                  </div>
+                  {/* Logout */}
+                  <button
+                    onClick={() => { setShowUserMenu(false); handleLogout(); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 transition-all"
+                  >
+                    <LogOut size={15} />
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
