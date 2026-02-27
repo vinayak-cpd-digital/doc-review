@@ -60,39 +60,39 @@ export default function LoginPage() {
         style={{ backgroundColor: "#be1549" }}
       />
 
-      <div className="w-full max-w-md px-6 relative z-10">
+      <div className="w-full max-w-lg px-6 relative z-10">
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Header */}
           <div
-            className="px-8 pt-10 pb-6 text-center"
+            className="px-10 pt-12 pb-8 text-center"
             style={{
               background:
                 "linear-gradient(135deg, #be1549 0%, #9b1040 100%)",
             }}
           >
-            <div className="flex justify-center mb-5">
+            <div className="flex justify-center mb-6">
               <div className="bg-white rounded-xl p-3 shadow-lg">
                 <Image
                   src={logo}
                   alt="Copperpod Logo"
-                  width={180}
-                  height={60}
-                  className="h-8 w-auto object-contain"
+                  width={200}
+                  height={68}
+                  className="h-10 w-auto object-contain"
                   priority
                 />
               </div>
             </div>
-            <h1 className="text-xl font-bold text-white tracking-tight">
-              Hotel Agreement Review System
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+              Contract Agent Platform
             </h1>
-            <p className="text-sm mt-1.5 text-white/70 font-medium">
+            <p className="text-sm mt-2 text-white/70 font-medium">
               Sign in to continue
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
+          <form onSubmit={handleSubmit} className="px-10 py-10 space-y-6">
             {/* Error message */}
             {error && (
               <div className="flex items-center gap-2.5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm animate-in fade-in duration-200">

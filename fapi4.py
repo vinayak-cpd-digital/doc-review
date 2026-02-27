@@ -1,12 +1,13 @@
 import io
 import os
 import json
+import shutil
 import asyncio
 import time
 import uuid
 import threading
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import requests
@@ -104,6 +105,7 @@ REVIEWER_KEY = os.getenv("REVIEWER_KEY", "reviewer")
 APPROVER_KEY = os.getenv("APPROVER_KEY", "approver")
 SUBMISSIONS_DIR = os.getenv("SUBMISSIONS_DIR", os.path.join(os.getcwd(), "review_submissions"))
 REVIEW_AUDIT_LOG_XLSX = os.getenv("REVIEW_AUDIT_LOG_XLSX", os.path.join(os.getcwd(), "review_audit_log.xlsx"))
+REVIEWED_FILES_DIR = os.getenv("REVIEWED_FILES_DIR", os.path.join(os.getcwd(), "reviewed_files"))
 _review_audit_lock = threading.Lock()
 
 
@@ -127,6 +129,118 @@ def _require_reviewer_or_approver(x_api_key: Optional[str]) -> str:
 
 def _ensure_submissions_dir() -> None:
     os.makedirs(SUBMISSIONS_DIR, exist_ok=True)
+
+
+def _ensure_reviewed_files_dir() -> None:
+    os.makedirs(REVIEWED_FILES_DIR, exist_ok=True)
+
+
+def _safe_filename(name: str) -> str:
+    # Keep this conservative for Windows.
+    bad = '<>:"/\\|?*\n\r\t'
+    out = "".join(("_" if c in bad else c) for c in (name or ""))
+    out = out.strip().strip(".")
+    return out or "file"
+
+
+def _reviewed_excel_path(submission_id: str, file_name: str) -> str:
+    _ensure_reviewed_files_dir()
+    base = _safe_filename(os.path.basename(file_name))
+    # Prevent extremely long file names.
+    if len(base) > 140:
+        base = base[:140]
+    return os.path.join(REVIEWED_FILES_DIR, f"{submission_id}__{base}.xlsx")
+
+
+def _reviewed_json_path(session_or_submission_id: str, file_name: str) -> str:
+    return os.path.splitext(_reviewed_excel_path(session_or_submission_id, file_name))[0] + ".json"
+
+
+def _clean_tables_from_rows(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    # Minimal metadata once (not repeated per row)
+    base = rows[0] if rows else {}
+    meta = {
+        "hotel_name": base.get("hotel_name"),
+        "station_or_airport_code": base.get("station_or_airport_code"),
+        "airline_name": base.get("airline_name"),
+        "document_title": base.get("document_title"),
+    }
+
+    compliance_cols = ["field", "actual_content", "compliant", "comment"]
+    compliance_rows = []
+    for r in rows:
+        if not r.get("field"):
+            continue
+        # Skip the synthetic entries (rate periods/yearly terms) from compliance table
+        if (
+            r.get("segment_year")
+            or r.get("rate_period_start_date")
+            or r.get("rate_period_room_rate")
+        ):
+            continue
+        compliance_rows.append([
+            r.get("field") or "",
+            r.get("actual_content") or "",
+            (r.get("compliant") or "").strip(),
+            r.get("comment") or "",
+        ])
+
+    yt_cols = ["segment_year", "segment_start_date", "segment_end_date", "segment_room_rate", "segment_currency"]
+    yt_rows = []
+    for r in rows:
+        if not (
+            r.get("segment_year")
+            or r.get("segment_start_date")
+            or r.get("segment_end_date")
+            or r.get("segment_room_rate")
+        ):
+            continue
+        yt_rows.append([
+            r.get("segment_year") or "",
+            r.get("segment_start_date") or "",
+            r.get("segment_end_date") or "",
+            r.get("segment_room_rate") or "",
+            r.get("segment_currency") or "",
+        ])
+
+    # sort yearly terms by year
+    def _y_key(row: List[Any]):
+        try:
+            return int(str(row[0]).strip())
+        except Exception:
+            return 10**9
+
+    yt_rows.sort(key=_y_key)
+
+    return {
+        "meta": meta,
+        "tables": {
+            "compliance": {"columns": compliance_cols, "rows": compliance_rows},
+            "yearly_terms": {"columns": yt_cols, "rows": yt_rows},
+        },
+    }
+
+
+def _load_saved_clean_table(session_or_submission_id: str, file_name: str) -> Optional[Dict[str, Any]]:
+    path = _reviewed_json_path(session_or_submission_id, file_name)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            obj = json.load(f)
+        if isinstance(obj, dict) and obj.get("tables"):
+            return obj
+    except Exception:
+        return None
+    return None
+
+
+def _save_clean_table(session_or_submission_id: str, file_name: str, obj: Dict[str, Any]) -> str:
+    path = _reviewed_json_path(session_or_submission_id, file_name)
+    _ensure_reviewed_files_dir()
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    return path
 
 
 def _submission_path(submission_id: str) -> str:
@@ -168,6 +282,59 @@ def _list_submissions() -> List[Dict[str, Any]]:
     return out
 
 
+def _extract_file_names_from_submission_payload(payload: Any) -> List[str]:
+    # Stored payload can be either:
+    # - {"ocr_session_id": ..., "results": [ {file_name, ...}, ... ]}
+    # - {"status": "success", "results": [...]}
+    # - [ {file_name, ...}, ... ]
+    # - a single result dict
+    if payload is None:
+        return []
+
+    # New clean reviewed table payload shape
+    if isinstance(payload, dict) and isinstance(payload.get("reviewed_tables"), dict):
+        rt = payload.get("reviewed_tables") or {}
+        fn = rt.get("file_name")
+        if isinstance(fn, str) and fn.strip():
+            return [fn.strip()]
+        return []
+
+    # In case we store the reviewed_tables directly as the payload
+    if isinstance(payload, dict) and isinstance(payload.get("tables"), dict):
+        fn = payload.get("file_name")
+        if isinstance(fn, str) and fn.strip():
+            return [fn.strip()]
+
+    raw = payload
+    if isinstance(raw, dict) and "results" in raw and isinstance(raw.get("results"), list):
+        raw = raw.get("results")
+
+    items: List[Dict[str, Any]] = []
+    if isinstance(raw, list):
+        items = [x for x in raw if isinstance(x, dict)]
+    elif isinstance(raw, dict):
+        items = [raw]
+    else:
+        return []
+
+    names: List[str] = []
+    for it in items:
+        fn = it.get("file_name") or (it.get("meta") or {}).get("file_name")
+        if isinstance(fn, str) and fn.strip():
+            names.append(fn.strip())
+
+    # de-dupe but stable
+    seen = set()
+    out: List[str] = []
+    for n in names:
+        key = n.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(n)
+    return out
+
+
 def _append_audit_log(row: Dict[str, Any]) -> None:
     with _review_audit_lock:
         if os.path.exists(REVIEW_AUDIT_LOG_XLSX):
@@ -187,6 +354,10 @@ OCR_SESSION_TTL_SECONDS = int(os.getenv("OCR_SESSION_TTL_SECONDS", "3600"))
 _ocr_sessions_lock = threading.Lock()
 _ocr_sessions: Dict[str, Dict[str, Any]] = {}
 
+REVIEW_SESSION_TTL_SECONDS = int(os.getenv("REVIEW_SESSION_TTL_SECONDS", "21600"))
+_review_sessions_lock = threading.Lock()
+_review_sessions: Dict[str, Dict[str, Any]] = {}
+
 
 def _ocr_sessions_purge_expired(now_ts: Optional[float] = None) -> None:
     now_ts = now_ts if now_ts is not None else time.time()
@@ -197,6 +368,44 @@ def _ocr_sessions_purge_expired(now_ts: Optional[float] = None) -> None:
             expired.append(sid)
     for sid in expired:
         _ocr_sessions.pop(sid, None)
+
+
+def _review_sessions_purge_expired(now_ts: Optional[float] = None) -> None:
+    now_ts = now_ts if now_ts is not None else time.time()
+    expired = []
+    for sid, payload in _review_sessions.items():
+        created = payload.get("created_at", 0)
+        if now_ts - float(created or 0) > REVIEW_SESSION_TTL_SECONDS:
+            expired.append(sid)
+    for sid in expired:
+        _review_sessions.pop(sid, None)
+
+
+def review_session_put(session_id: str, results_payload: Dict[str, Any]) -> None:
+    now_ts = time.time()
+    with _review_sessions_lock:
+        _review_sessions_purge_expired(now_ts)
+        _review_sessions[session_id] = {
+            "created_at": now_ts,
+            "payload": results_payload,
+        }
+
+
+def review_session_get(session_id: str) -> Optional[Dict[str, Any]]:
+    with _review_sessions_lock:
+        _review_sessions_purge_expired()
+        sess = _review_sessions.get(session_id)
+        if not sess:
+            return None
+        return {"created_at": sess.get("created_at"), "payload": sess.get("payload")}
+
+
+def review_session_clear(session_id: Optional[str]) -> None:
+    if not session_id:
+        return
+    with _review_sessions_lock:
+        _review_sessions_purge_expired()
+        _review_sessions.pop(session_id, None)
 
 
 def ocr_session_clear(session_id: Optional[str]) -> None:
@@ -253,6 +462,22 @@ async def get_ocr_for_file(
 async def delete_ocr_session(session_id: str = FastAPIPath(..., description="OCR session id to delete")):
     ocr_session_clear(session_id)
     return JSONResponse(content={"status": "success", "ocr_session_id": session_id})
+
+
+@app.get("/review-sessions/{review_session_id}")
+async def get_review_session(review_session_id: str, x_api_key: Optional[str] = Header(None)):
+    _require_reviewer_or_approver(x_api_key)
+    sess = review_session_get(review_session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Review session not found or expired")
+    return JSONResponse(content={"status": "success", "review_session_id": review_session_id, **sess})
+
+
+@app.delete("/review-sessions/{review_session_id}")
+async def delete_review_session(review_session_id: str, x_api_key: Optional[str] = Header(None)):
+    _require_reviewer_or_approver(x_api_key)
+    review_session_clear(review_session_id)
+    return JSONResponse(content={"status": "success", "review_session_id": review_session_id})
 
 # CORS for your React app (adjust origins to your domain/port)
 
@@ -312,6 +537,33 @@ def build_excel_bytes(flat_rows: List[Dict[str, Any]]) -> bytes:
         df.to_excel(writer, sheet_name="Review", index=False)
     buf.seek(0)
     return buf.read()
+
+
+def _excel_bytes_from_clean_tables(clean_obj: Dict[str, Any]) -> bytes:
+    tables = (clean_obj or {}).get("tables") or {}
+    comp = tables.get("compliance") or {}
+    yt = tables.get("yearly_terms") or {}
+
+    comp_cols = comp.get("columns") or ["field", "actual_content", "compliant", "comment"]
+    comp_rows = comp.get("rows") or []
+    yt_cols = yt.get("columns") or ["segment_year", "segment_start_date", "segment_end_date", "segment_room_rate", "segment_currency"]
+    yt_rows = yt.get("rows") or []
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
+        df_comp = pd.DataFrame(comp_rows, columns=comp_cols)
+        df_comp.to_excel(writer, sheet_name="Compliance", index=False)
+
+        df_yt = pd.DataFrame(yt_rows, columns=yt_cols)
+        df_yt.to_excel(writer, sheet_name="Yearly Terms", index=False)
+
+    buf.seek(0)
+    return buf.read()
+
+
+def _rows_from_review_session_payload(review_payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    # review_payload shape: {"ocr_session_id": ..., "results": [...]}
+    return _rows_from_payload(review_payload)
 
 def call_vectorshift(file_bytes: bytes, filename: str, mime: str):
     """
@@ -1118,6 +1370,67 @@ def _rows_from_payload(payload: Union[Dict[str, Any], List[Dict[str, Any]]]) -> 
     return all_rows
 
 
+def _filter_rows_to_file(rows: List[Dict[str, Any]], file_name: str) -> List[Dict[str, Any]]:
+    fn = (file_name or "").strip().lower()
+    if not fn:
+        return rows
+    # substring match to be robust to minor naming differences
+    return [r for r in rows if fn in str(r.get("file_name") or "").lower()]
+
+
+def _make_single_file_workbook_bytes(
+    file_rows: List[Dict[str, Any]],
+    yearly_terms: List[Dict[str, Any]],
+    rate_periods: List[Dict[str, Any]],
+    file_name: str,
+) -> bytes:
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
+        # Main review rows
+        df_main = pd.DataFrame(file_rows or [])
+        df_main.to_excel(writer, sheet_name="Review Items", index=False)
+
+        if yearly_terms:
+            cols = [
+                "file_name",
+                "hotel_name",
+                "station_or_airport_code",
+                "segment_year",
+                "segment_start_date",
+                "segment_end_date",
+                "segment_room_rate",
+                "segment_currency",
+            ]
+            df_yt = pd.DataFrame(yearly_terms)
+            for c in cols:
+                if c not in df_yt.columns:
+                    df_yt[c] = ""
+            df_yt = df_yt[cols]
+            df_yt.to_excel(writer, sheet_name="Yearly Terms", index=False)
+
+        if rate_periods:
+            cols = [
+                "file_name",
+                "hotel_name",
+                "station_or_airport_code",
+                "rate_period_label",
+                "rate_period_start_date",
+                "rate_period_end_date",
+                "rate_period_room_rate",
+                "rate_period_currency",
+                "rate_period_taxes_and_fees",
+            ]
+            df_rp = pd.DataFrame(rate_periods)
+            for c in cols:
+                if c not in df_rp.columns:
+                    df_rp[c] = ""
+            df_rp = df_rp[cols]
+            df_rp.to_excel(writer, sheet_name="Rate Periods", index=False)
+
+    buf.seek(0)
+    return buf.read()
+
+
 @app.post("/analyze-batch")
 async def analyze_batch(
     files: List[UploadFile] = File(..., description="Upload up to 5 files"),
@@ -1244,7 +1557,209 @@ async def analyze_batch(
                 }
 
     results = await asyncio.gather(*[_process_one(f) for f in files])
-    return JSONResponse(content={"status": "success", "ocr_session_id": ocr_session_id, "results": results})
+
+    # Review session: allows reviewer to fetch tables & save per-file Excel before creating a submission.
+    review_session_id = str(uuid.uuid4())
+    review_payload = {"ocr_session_id": ocr_session_id, "results": results}
+    review_session_put(review_session_id, review_payload)
+
+    return JSONResponse(
+        content={
+            "status": "success",
+            "ocr_session_id": ocr_session_id,
+            "review_session_id": review_session_id,
+            "results": results,
+        }
+    )
+
+
+@app.get("/review-sessions/{review_session_id}/file-review")
+async def get_single_file_review_table_from_session(
+    review_session_id: str,
+    file_name: str,
+    x_api_key: Optional[str] = Header(None),
+):
+    _require_reviewer_or_approver(x_api_key)
+
+    saved = _load_saved_clean_table(review_session_id, file_name)
+    if saved:
+        return JSONResponse(
+            content={
+                "status": "success",
+                "review_session_id": review_session_id,
+                "file_name": file_name,
+                **saved,
+            }
+        )
+
+    sess = review_session_get(review_session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Review session not found or expired")
+
+    review_payload = sess.get("payload")
+    if not isinstance(review_payload, dict):
+        raise HTTPException(status_code=400, detail="Review session payload missing")
+
+    rows_all = _rows_from_review_session_payload(review_payload)
+    rows = _filter_rows_to_file(rows_all, file_name)
+    clean = _clean_tables_from_rows(rows)
+    return JSONResponse(
+        content={
+            "status": "success",
+            "review_session_id": review_session_id,
+            "file_name": file_name,
+            **clean,
+        }
+    )
+
+
+@app.post("/review-sessions/{review_session_id}/file-review/save")
+async def save_single_file_review_excel_from_session(
+    review_session_id: str,
+    payload: Dict[str, Any],
+    x_api_key: Optional[str] = Header(None),
+):
+    _require_reviewer(x_api_key)
+    sess = review_session_get(review_session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Review session not found or expired")
+
+    file_name = payload.get("file_name")
+    if not file_name or not isinstance(file_name, str):
+        raise HTTPException(status_code=400, detail="file_name is required")
+
+    # Preferred (clean) shape: { meta: {...}, tables: { compliance: {columns,rows}, yearly_terms: {columns,rows} } }
+    clean_obj = None
+    if isinstance(payload.get("tables"), dict) and isinstance((payload.get("tables") or {}).get("compliance"), dict):
+        clean_obj = {
+            "meta": payload.get("meta") or {},
+            "tables": payload.get("tables") or {},
+        }
+    else:
+        # Backward compatible legacy save shape
+        tables = payload.get("tables") or {}
+        review_items = tables.get("review_items") or []
+        yearly_terms = tables.get("yearly_terms") or []
+        rate_periods = tables.get("rate_periods") or []
+
+        if not isinstance(review_items, list) or not isinstance(yearly_terms, list) or not isinstance(rate_periods, list):
+            raise HTTPException(status_code=400, detail="tables.* must be lists or provide clean tables.compliance/yearly_terms")
+
+        # convert legacy list-of-dicts to clean columns+rows
+        compliance_cols = ["field", "actual_content", "compliant", "comment"]
+        compliance_rows = [
+            [r.get("field") or "", r.get("actual_content") or "", (r.get("compliant") or "").strip(), r.get("comment") or ""]
+            for r in review_items
+            if isinstance(r, dict) and r.get("field")
+        ]
+        yt_cols = ["segment_year", "segment_start_date", "segment_end_date", "segment_room_rate", "segment_currency"]
+        yt_rows = [
+            [r.get("segment_year") or "", r.get("segment_start_date") or "", r.get("segment_end_date") or "", r.get("segment_room_rate") or "", r.get("segment_currency") or ""]
+            for r in yearly_terms
+            if isinstance(r, dict)
+        ]
+        clean_obj = {
+            "meta": payload.get("meta") or {},
+            "tables": {
+                "compliance": {"columns": compliance_cols, "rows": compliance_rows},
+                "yearly_terms": {"columns": yt_cols, "rows": yt_rows},
+            },
+        }
+
+    # Persist clean JSON (for approver to see same edits)
+    _save_clean_table(review_session_id, file_name, clean_obj)
+
+    # Persist Excel
+    excel_bytes = _excel_bytes_from_clean_tables(clean_obj)
+
+    out_path = _reviewed_excel_path(review_session_id, file_name)
+    with open(out_path, "wb") as f:
+        f.write(excel_bytes)
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    _append_audit_log({
+        "timestamp": now_str,
+        "submission_id": review_session_id,
+        "action": "file_review_saved",
+        "actor": "reviewer",
+        "decision": "saved",
+        "comment": os.path.basename(out_path),
+    })
+
+    return JSONResponse(
+        content={
+            "status": "success",
+            "review_session_id": review_session_id,
+            "file_name": file_name,
+            "saved_excel": os.path.basename(out_path),
+        }
+    )
+
+
+@app.get("/review-sessions/{review_session_id}/file-review/download")
+async def download_single_file_review_excel_from_session(
+    review_session_id: str,
+    file_name: str,
+    x_api_key: Optional[str] = Header(None),
+):
+    _require_reviewer_or_approver(x_api_key)
+    path = _reviewed_excel_path(review_session_id, file_name)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Reviewed Excel not found")
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=os.path.basename(path),
+    )
+
+
+@app.post("/review-sessions/{review_session_id}/submit")
+async def submit_review_from_session(review_session_id: str, x_api_key: Optional[str] = Header(None)):
+    _require_reviewer(x_api_key)
+    sess = review_session_get(review_session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Review session not found or expired")
+    review_payload = sess.get("payload")
+    if not isinstance(review_payload, dict):
+        raise HTTPException(status_code=400, detail="Review session payload missing")
+
+    submission_id = str(uuid.uuid4())
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    obj = {
+        "submission_id": submission_id,
+        "created_at": now_str,
+        "status": "submitted",
+        "reviewer": "reviewer",
+        "payload": review_payload,
+        "source_review_session_id": review_session_id,
+    }
+    _write_submission(submission_id, obj)
+
+    # Copy any saved reviewed artifacts (JSON/XLSX) from review_session namespace -> submission namespace
+    try:
+        # If reviewer saved per-file tables, they are stored in reviewed_files/<review_session_id>__<file>.json/xlsx
+        # We copy them to reviewed_files/<submission_id>__<file>.json/xlsx
+        for root, _, files in os.walk(REVIEWED_FILES_DIR):
+            for name in files:
+                if not name.startswith(f"{review_session_id}__"):
+                    continue
+                src = os.path.join(root, name)
+                dst = os.path.join(root, name.replace(f"{review_session_id}__", f"{submission_id}__", 1))
+                try:
+                    shutil.copyfile(src, dst)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    _append_audit_log({
+        "timestamp": now_str,
+        "submission_id": submission_id,
+        "action": "submitted",
+        "actor": "reviewer",
+        "decision": "submitted",
+        "comment": f"source_review_session_id={review_session_id}",
+    })
+    return JSONResponse(content={"status": "success", "submission_id": submission_id})
 
 
 
@@ -1389,12 +1904,34 @@ async def submit_review(payload: Dict[str, Any], x_api_key: Optional[str] = Head
     submission_id = str(uuid.uuid4())
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # If frontend submits the clean file-level reviewed tables, persist only those (not full VS output)
+    stored_payload: Any = payload
+    reviewed_tables = payload.get("reviewed_tables") if isinstance(payload, dict) else None
+    if isinstance(reviewed_tables, dict) and isinstance(reviewed_tables.get("tables"), dict):
+        stored_payload = reviewed_tables
+        fn = reviewed_tables.get("file_name")
+        if isinstance(fn, str) and fn.strip():
+            # Persist as reviewed artifact so approver endpoints return exactly the edited tables
+            _save_clean_table(submission_id, fn.strip(), {
+                "meta": reviewed_tables.get("meta") or {},
+                "tables": reviewed_tables.get("tables") or {},
+            })
+            try:
+                excel_bytes = _excel_bytes_from_clean_tables({
+                    "meta": reviewed_tables.get("meta") or {},
+                    "tables": reviewed_tables.get("tables") or {},
+                })
+                with open(_reviewed_excel_path(submission_id, fn.strip()), "wb") as f:
+                    f.write(excel_bytes)
+            except Exception:
+                pass
+
     obj = {
         "submission_id": submission_id,
         "created_at": now_str,
         "status": "submitted",
         "reviewer": "reviewer",
-        "payload": payload,
+        "payload": stored_payload,
     }
     _write_submission(submission_id, obj)
     _append_audit_log({
@@ -1414,12 +1951,62 @@ async def list_reviews(status: Optional[str] = None, x_api_key: Optional[str] = 
     items = _list_submissions()
     if status:
         items = [x for x in items if (x.get("status") or "").lower() == status.lower()]
-    return JSONResponse(content={"status": "success", "items": items})
+
+    # Expand into file-level view for UI (because you review file-by-file now)
+    file_items: List[Dict[str, Any]] = []
+    for it in items:
+        sid = it.get("submission_id")
+        if not sid:
+            continue
+        try:
+            sub = _read_submission(str(sid))
+        except Exception:
+            continue
+        payload = sub.get("payload")
+        fns = _extract_file_names_from_submission_payload(payload)
+        for fn in fns:
+            file_items.append({
+                "submission_id": sid,
+                "file_name": fn,
+                "created_at": it.get("created_at"),
+                "status": it.get("status"),
+                "reviewer": it.get("reviewer"),
+            })
+
+    return JSONResponse(content={"status": "success", "items": items, "files": file_items})
 
 
 @app.get("/reviews/{submission_id}")
-async def get_review(submission_id: str, x_api_key: Optional[str] = Header(None)):
+async def get_review(submission_id: str, file_name: Optional[str] = None, x_api_key: Optional[str] = Header(None)):
     _require_reviewer_or_approver(x_api_key)
+    if file_name:
+        saved = _load_saved_clean_table(submission_id, file_name)
+        if saved:
+            return JSONResponse(
+                content={
+                    "status": "success",
+                    "submission_id": submission_id,
+                    "file_name": file_name,
+                    **saved,
+                }
+            )
+
+        obj = _read_submission(submission_id)
+        payload = obj.get("payload")
+        if payload is None:
+            raise HTTPException(status_code=400, detail="Submission payload missing")
+        rows_all = _rows_from_payload(payload)
+        rows = _filter_rows_to_file(rows_all, file_name)
+        clean = _clean_tables_from_rows(rows)
+        return JSONResponse(
+            content={
+                "status": "success",
+                "submission_id": submission_id,
+                "file_name": file_name,
+                **clean,
+            }
+        )
+
     obj = _read_submission(submission_id)
     return JSONResponse(content={"status": "success", **obj})
 
@@ -1484,6 +2071,139 @@ async def get_yearly_terms_table(
     ]
 
     return JSONResponse(content={"status": "success", "submission_id": submission_id, "count": len(table), "items": table})
+
+
+@app.get("/reviews/{submission_id}/file-review")
+async def get_single_file_review_table(
+    submission_id: str,
+    file_name: str,
+    x_api_key: Optional[str] = Header(None),
+):
+    _require_reviewer_or_approver(x_api_key)
+
+    saved = _load_saved_clean_table(submission_id, file_name)
+    if saved:
+        return JSONResponse(
+            content={
+                "status": "success",
+                "submission_id": submission_id,
+                "file_name": file_name,
+                **saved,
+            }
+        )
+
+    obj = _read_submission(submission_id)
+    payload = obj.get("payload")
+    if payload is None:
+        raise HTTPException(status_code=400, detail="Submission payload missing")
+
+    rows_all = _rows_from_payload(payload)
+    rows = _filter_rows_to_file(rows_all, file_name)
+    clean = _clean_tables_from_rows(rows)
+    return JSONResponse(
+        content={
+            "status": "success",
+            "submission_id": submission_id,
+            "file_name": file_name,
+            **clean,
+        }
+    )
+
+
+@app.post("/reviews/{submission_id}/file-review/save")
+async def save_single_file_review_excel(
+    submission_id: str,
+    payload: Dict[str, Any],
+    x_api_key: Optional[str] = Header(None),
+):
+    _require_reviewer(x_api_key)
+
+    file_name = payload.get("file_name")
+    if not file_name or not isinstance(file_name, str):
+        raise HTTPException(status_code=400, detail="file_name is required")
+
+    # Preferred (clean) shape: { meta: {...}, tables: { compliance: {columns,rows}, yearly_terms: {columns,rows} } }
+    clean_obj = None
+    if isinstance(payload.get("tables"), dict) and isinstance((payload.get("tables") or {}).get("compliance"), dict):
+        clean_obj = {
+            "meta": payload.get("meta") or {},
+            "tables": payload.get("tables") or {},
+        }
+    else:
+        # Backward compatible legacy save shape
+        tables = payload.get("tables") or {}
+        review_items = tables.get("review_items") or []
+        yearly_terms = tables.get("yearly_terms") or []
+        rate_periods = tables.get("rate_periods") or []
+
+        if not isinstance(review_items, list) or not isinstance(yearly_terms, list) or not isinstance(rate_periods, list):
+            raise HTTPException(status_code=400, detail="tables.* must be lists or provide clean tables.compliance/yearly_terms")
+
+        compliance_cols = ["field", "actual_content", "compliant", "comment"]
+        compliance_rows = [
+            [r.get("field") or "", r.get("actual_content") or "", (r.get("compliant") or "").strip(), r.get("comment") or ""]
+            for r in review_items
+            if isinstance(r, dict) and r.get("field")
+        ]
+        yt_cols = ["segment_year", "segment_start_date", "segment_end_date", "segment_room_rate", "segment_currency"]
+        yt_rows = [
+            [r.get("segment_year") or "", r.get("segment_start_date") or "", r.get("segment_end_date") or "", r.get("segment_room_rate") or "", r.get("segment_currency") or ""]
+            for r in yearly_terms
+            if isinstance(r, dict)
+        ]
+        clean_obj = {
+            "meta": payload.get("meta") or {},
+            "tables": {
+                "compliance": {"columns": compliance_cols, "rows": compliance_rows},
+                "yearly_terms": {"columns": yt_cols, "rows": yt_rows},
+            },
+        }
+
+    # Persist clean JSON (approver sees same edits)
+    _save_clean_table(submission_id, file_name, clean_obj)
+
+    # Persist Excel
+    excel_bytes = _excel_bytes_from_clean_tables(clean_obj)
+
+    out_path = _reviewed_excel_path(submission_id, file_name)
+    with open(out_path, "wb") as f:
+        f.write(excel_bytes)
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    _append_audit_log({
+        "timestamp": now_str,
+        "submission_id": submission_id,
+        "action": "file_review_saved",
+        "actor": "reviewer",
+        "decision": "saved",
+        "comment": os.path.basename(out_path),
+    })
+
+    return JSONResponse(
+        content={
+            "status": "success",
+            "submission_id": submission_id,
+            "file_name": file_name,
+            "saved_excel": os.path.basename(out_path),
+        }
+    )
+
+
+@app.get("/reviews/{submission_id}/file-review/download")
+async def download_single_file_review_excel(
+    submission_id: str,
+    file_name: str,
+    x_api_key: Optional[str] = Header(None),
+):
+    _require_reviewer_or_approver(x_api_key)
+    path = _reviewed_excel_path(submission_id, file_name)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Reviewed Excel not found")
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=os.path.basename(path),
+    )
 
 
 @app.get("/reviews/{submission_id}/tables/rate-periods")

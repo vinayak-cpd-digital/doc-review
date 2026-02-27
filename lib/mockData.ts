@@ -1,6 +1,7 @@
 export const mockApiResponse: unknown = {
   "status": "success",
   "ocr_session_id": "bbe0df32-9073-4288-8b58-4d045de727ef",
+  "review_session_id": "184ab8f3-db0e-488b-ac2b-a9eee6007be0",
   "results": [
     {
       "status": "success",

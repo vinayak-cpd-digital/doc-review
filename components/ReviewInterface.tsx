@@ -9,7 +9,6 @@ import {
   ChevronRight,
   CheckCircle,
   XCircle,
-  Send,
   RefreshCw,
   Clock,
 } from "lucide-react";
@@ -26,7 +25,6 @@ interface ReviewInterfaceProps {
   isApproved: boolean;
   onHighlightRequest: (text: string) => void;
   role?: "reviewer" | "approver";
-  onSubmit?: () => Promise<void>;
   onResubmit?: () => Promise<void>;
   onCheckStatus?: () => Promise<void>;
   submissionStatus?: "idle" | "loading" | "submitted" | "rejected" | "approved" | "error";
@@ -41,7 +39,6 @@ export default function ReviewInterface({
   isApproved,
   onHighlightRequest,
   role = "approver",
-  onSubmit,
   onResubmit,
   onCheckStatus,
   submissionStatus = "idle",
@@ -195,7 +192,6 @@ export default function ReviewInterface({
                   submissionStatus={submissionStatus}
                   submissionId={submissionId}
                   submissionError={submissionError}
-                  onSubmit={onSubmit}
                   onResubmit={onResubmit}
                   onCheckStatus={onCheckStatus}
                 />
@@ -316,7 +312,6 @@ interface ReviewerActionsProps {
   submissionStatus: "idle" | "loading" | "submitted" | "rejected" | "approved" | "error";
   submissionId?: string;
   submissionError?: string;
-  onSubmit?: () => Promise<void>;
   onResubmit?: () => Promise<void>;
   onCheckStatus?: () => Promise<void>;
 }
@@ -325,7 +320,6 @@ function ReviewerActions({
   submissionStatus,
   submissionId,
   submissionError,
-  onSubmit,
   onResubmit,
   onCheckStatus,
 }: ReviewerActionsProps) {
@@ -351,23 +345,6 @@ function ReviewerActions({
 
   return (
     <div className="flex items-center gap-1.5">
-      {/* Submit — only when not yet submitted */}
-      {(submissionStatus === "idle" || submissionStatus === "error") && (
-        <button
-          onClick={onSubmit}
-          disabled={isLoading}
-          className="px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{ backgroundColor: "#fdf2f7", color: "#be1549", borderColor: "#be1549" }}
-          title="Submit this file to approver"
-        >
-          {isLoading ? (
-            <><span className="animate-spin inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full" />Submitting...</>
-          ) : (
-            <><Send size={13} />Submit to Approver</>
-          )}
-        </button>
-      )}
-
       {/* Status badge */}
       {statusBadge()}
 

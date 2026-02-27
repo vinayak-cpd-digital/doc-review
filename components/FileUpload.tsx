@@ -75,6 +75,7 @@ export default function FileUpload({
       }
 
       const ocrSessionId = apiData.ocr_session_id;
+      const reviewSessionId = apiData.review_session_id;
 
       // Ordered mock OCR keys for index-based fallback
       const mockOcrFiles = mockOcrResponse.files as Record<string, string>;
@@ -95,6 +96,7 @@ export default function FileUpload({
           runId: result.run_id || `run-${Date.now()}-${index}`,
           batchResult: result,
           translatedContent: ocrContent,
+          reviewSessionId,
         };
       });
 
@@ -258,7 +260,7 @@ export default function FileUpload({
       </button>
 
       {/* Export Button - Only enabled when there are approved files */}
-      <button
+      {/* <button
         onClick={handleExport}
         disabled={
           isExporting ||
@@ -294,7 +296,7 @@ export default function FileUpload({
             <span>Export Report</span>
           </>
         )}
-      </button>
+      </button> */}
 
       {error && (
         <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">

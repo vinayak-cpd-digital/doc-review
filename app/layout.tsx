@@ -12,8 +12,8 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Hotel Agreement Review System",
-  description: "AI-powered compliance review for hotel-airline rate agreements",
+  title: "Contract Agent Platform",
+  description: "AI-powered contract review and compliance platform",
 };
 
 export default function RootLayout({

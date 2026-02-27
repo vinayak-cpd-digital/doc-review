@@ -1,0 +1,155 @@
+{
+  "status": "success",
+  "review_session_id": "4e6fe014-3556-40c1-8ede-935725c0bdfa",
+  "file_name": "ASLF - FSP Hotel Contract 2025.pdf",
+  "meta": {
+    "hotel_name": "Les Terrasses du Port",
+    "station_or_airport_code": null,
+    "airline_name": "ASL AIRLINES France SA",
+    "document_title": "FSP Hotel Contract 2025"
+  },
+  "tables": {
+    "compliance": {
+      "columns": [
+        "field",
+        "actual_content",
+        "compliant",
+        "comment"
+      ],
+      "rows": [
+        [
+          "Name (Parties)",
+          "Le présent contrat est établi entre l'Hôtel Les Terrasses du Port et ASL AIRLINES.",
+          "Y",
+          "Both parties are clearly stated."
+        ],
+        [
+          "Start Date",
+          "1er janvier 2025",
+          "Y",
+          "Start date is explicitly mentioned."
+        ],
+        [
+          "End Date",
+          "31 décembre 2025",
+          "Y",
+          "End date is explicitly mentioned."
+        ],
+        [
+          "Room Capping",
+          "Le volume annuel estimé des chambres prévues par le présent contrat est de 77 chambres, pour l'année 2025.",
+          "Y",
+          "Annual room volume is specified."
+        ],
+        [
+          "Ad Hoc Rate",
+          "",
+          "N",
+          "No ad hoc rate specified."
+        ],
+        [
+          "Currency",
+          "€",
+          "Y",
+          "Currency is clearly stated as Euro."
+        ],
+        [
+          "Tax Rate and Exemption",
+          "Depuis le 1er Janvier 2023, une taxe de séjour est applicable sur l'archipel de Saint-Pierre et Miquelon. Elle correspond à 5% du montant du prix de la chambre.",
+          "Y",
+          "Tax rate and applicability are clearly stated."
+        ],
+        [
+          "Early Check-ins and Check-outs",
+          "",
+          "N",
+          "No specific early/late check-in/out policy mentioned."
+        ],
+        [
+          "Weekend/Special-Day Rates",
+          "",
+          "N",
+          "No special rates for weekends or special days mentioned."
+        ],
+        [
+          "Layover Rules",
+          "",
+          "N",
+          "No specific layover rules mentioned."
+        ],
+        [
+          "Cancellation Policy",
+          "ASL AIRLINES confirmera par e-mail toute demande d'annulation de chambre avant 16h le jour de l'arrivée de l'équipage. Aucune pénalité ne sera facturée.",
+          "Y",
+          "Cancellation policy is clearly stated."
+        ],
+        [
+          "Additional Room Rules",
+          "",
+          "N",
+          "No additional room rules mentioned."
+        ],
+        [
+          "Commission Rate",
+          "La commission convenue est de 10%.",
+          "Y",
+          "Commission rate is clearly stated."
+        ],
+        [
+          "Single Room Rate",
+          "Le tarif proposé par l'Hôtel Les Terrasses du port à ASL AIRLINE est de 100€.",
+          "Y",
+          "Single room rate is clearly stated."
+        ],
+        [
+          "Check-In Time",
+          "",
+          "N",
+          "No check-in time specified."
+        ],
+        [
+          "Check-Out Time",
+          "",
+          "N",
+          "No check-out time specified."
+        ],
+        [
+          "Other Tax / Flat Tax",
+          "",
+          "N",
+          "No other tax or flat tax mentioned."
+        ],
+        [
+          "Is Contract Signed",
+          "Signature: legible Pour ASL AIRLINES Mark O'Kelly Chief Financial Officer ASL Aviation Holdings DAC",
+          "Y",
+          "Contract is signed by ASL AIRLINES representative."
+        ],
+        [
+          "Operational Memo",
+          "",
+          "N",
+          "No operational memo specified."
+        ]
+      ]
+    },
+    "yearly_terms": {
+      "columns": [
+        "segment_year",
+        "segment_start_date",
+        "segment_end_date",
+        "segment_room_rate",
+        "segment_currency"
+      ],
+      "rows": [
+        [
+          2025,
+          "1er janvier 2025",
+          "31 décembre 2025",
+          "Le tarif proposé par l'Hôtel Les Terrasses du port à ASL AIRLINE est de 100€.",
+          "€"
+        ]
+      ]
+    }
+  }
+}

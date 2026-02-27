@@ -9,6 +9,7 @@
 export interface ApiResponse {
   status: "success" | "error";
   ocr_session_id: string;
+  review_session_id?: string;
   results: BatchResult[];
 }
 
@@ -135,6 +136,8 @@ export interface FileData {
   translatedContent?: string; // OCR HTML/markdown content to render directly
   isApproved?: boolean;
   batchResult?: BatchResult;
+
+  reviewSessionId?: string;
 
   submissionId?: string;
   submissionStatus?: "idle" | "loading" | "submitted" | "rejected" | "approved" | "error";
