@@ -9,9 +9,11 @@ import {
 } from "lucide-react";
 import { useState, useRef } from "react";
 import toast from "react-hot-toast";
-import { FileData } from "@/lib/types";
+import { FileData, ApiResponse } from "@/lib/types";
+import { fetchOcrContent } from "@/lib/ocrService";
 import { mockApiResponse } from "@/lib/mockData";
 import { mockOcrResponse } from "@/lib/mockOcrData";
+import { useMockMode } from "@/context/MockModeContext";
 
 interface FileUploadProps {
   onUploadSuccess: (files: FileData[], ocrSessionId?: string) => void;
@@ -22,6 +24,7 @@ export default function FileUpload({
   onUploadSuccess,
   apiResponse,
 }: FileUploadProps) {
+  const { useMock } = useMockMode();
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -34,47 +37,74 @@ export default function FileUpload({
     setError(null);
     setSuccess(false);
 
-    // Validate all files are .docx
     const fileArray = Array.from(files);
-    const invalidFiles = fileArray.filter((f) => !f.name.endsWith(".docx"));
-
-    // if (invalidFiles.length > 0) {
-    //   const errorMessage = "Please upload only .docx files";
-    //   setError(errorMessage);
-    //   toast.error(errorMessage);
-    //   return;
-    // }
+    const useMockData = useMock;
 
     setIsUploading(true);
 
     try {
-      // Use mock data directly — no API call needed for now
-      // In production, replace this block with the actual API call
+      let apiData: ApiResponse;
 
-      // Step 1: Get review data from mock API response
-      const mockResults = mockApiResponse.results;
-      const ocrSessionId = mockApiResponse.ocr_session_id;
+      if (useMockData) {
+        // Use mock data directly — simulate a short delay
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        apiData = mockApiResponse as ApiResponse;
+      } else {
+        // Call real backend
+        const formData = new FormData();
+        fileArray.forEach((file) => formData.append("files", file));
 
-      // Step 2: Map each uploaded file to its corresponding mock result + OCR content
+        let response: Response;
+        try {
+          response = await fetch("http://localhost:8000/analyze-batch", {
+            method: "POST",
+            body: formData,
+          });
+          if (!response.ok) throw new Error(`Analysis failed: ${response.statusText}`);
+          apiData = await response.json();
+        } catch {
+          // Backend unavailable — fall back to mock data
+          toast("Backend unavailable, using mock data", { icon: "⚠️" });
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          apiData = mockApiResponse as ApiResponse;
+        }
+      }
+
+      if (!apiData.results || apiData.results.length === 0) {
+        throw new Error("Analysis returned no results");
+      }
+
+      const ocrSessionId = apiData.ocr_session_id;
+
+      // Ordered mock OCR keys for index-based fallback
+      const mockOcrFiles = mockOcrResponse.files as Record<string, string>;
+      const mockOcrKeys = Object.keys(mockOcrFiles);
+
+      // Map each uploaded file to a result by index (cycles if fewer than 5 uploaded).
       const filesData: FileData[] = fileArray.map((file, index) => {
-        // Use the mock result for this file (cycle if more files than results)
-        const result = mockResults[index % mockResults.length];
-
-        // Step 3: Look up OCR translated content from mock OCR response using file_name
-        const ocrContent = mockOcrResponse.files[result.file_name] || undefined;
-
+        const result = apiData.results[index % apiData.results.length];
+        // Pre-fill OCR content: exact key match first, then index-based fallback
+        const ocrContent =
+          mockOcrFiles[result.file_name] ??
+          mockOcrFiles[mockOcrKeys[index % mockOcrKeys.length]] ??
+          undefined;
         return {
-          file: file,
+          file,
           fileName: result.file_name,
           parsed: result.output_parsed,
-          runId: result.run_id || `mock-${Date.now()}-${index}`,
-          translatedContent: ocrContent, // OCR HTML/markdown content for DocumentPreview
+          runId: result.run_id || `run-${Date.now()}-${index}`,
           batchResult: result,
+          translatedContent: ocrContent,
         };
       });
 
-      // Simulate a brief loading delay for UX
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // In live mode, try to fetch real OCR for the first file if not already set
+      if (!useMockData && ocrSessionId && !filesData[0]?.translatedContent) {
+        const ocrContent = await fetchOcrContent(ocrSessionId, filesData[0].fileName, false);
+        if (ocrContent) {
+          filesData[0] = { ...filesData[0], translatedContent: ocrContent };
+        }
+      }
 
       setSuccess(true);
       onUploadSuccess(filesData, ocrSessionId);
@@ -83,7 +113,6 @@ export default function FileUpload({
         `${fileArray.length} file${fileArray.length > 1 ? "s" : ""} analyzed successfully!`,
       );
 
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       const errorMessage =

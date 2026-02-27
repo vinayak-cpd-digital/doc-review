@@ -1,23 +1,49 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import FileUpload from "@/components/FileUpload";
 import DocumentPreview from "@/components/DocumentPreview";
 import ReviewInterface from "@/components/ReviewInterface";
 import FileTabs from "@/components/FileTabs";
 import ActualFilePopup from "@/components/ActualFilePopup";
 import { FileData } from "@/lib/types";
-import { Eye } from "lucide-react";
+import { fetchOcrContent } from "@/lib/ocrService";
+import { mockOcrResponse } from "@/lib/mockOcrData";
+import { useAuth } from "@/context/AuthContext";
+import { useMockMode } from "@/context/MockModeContext";
+import { Eye, LogOut, User as UserIcon } from "lucide-react";
 import Image from "next/image";
 import logo from "@/public/copperpod-logo.png";
 
 export default function Home() {
+  const { user, logout, isLoading } = useAuth();
+  const { useMock, setUseMock } = useMockMode();
+  const router = useRouter();
   const [filesData, setFilesData] = useState<FileData[]>([]);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [highlightText, setHighlightText] = useState<string>("");
   const [showActualFile, setShowActualFile] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [ocrSessionId, setOcrSessionId] = useState<string | null>(null);
+
+  // Redirect to login if not authenticated
+  if (!isLoading && !user) {
+    router.replace("/login");
+    return null;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="animate-spin h-8 w-8 border-4 rounded-full border-t-transparent" style={{ borderColor: '#be1549', borderTopColor: 'transparent' }} />
+      </div>
+    );
+  }
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
 
   const handleUploadSuccess = (files: FileData[], ocrSessionId?: string) => {
     setFilesData(files);
@@ -62,12 +88,134 @@ export default function Home() {
     setFilesData(updatedFiles);
   };
 
+  const updateFileSubmission = (index: number, patch: Partial<FileData>) => {
+    setFilesData((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...patch };
+      return updated;
+    });
+  };
+
+  const handleSubmitFile = async (index: number) => {
+    const f = filesData[index];
+    if (!f) return;
+    updateFileSubmission(index, { submissionStatus: "loading", submissionError: undefined });
+    try {
+      const res = await fetch("http://localhost:8000/reviews/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": "reviewer" },
+        body: JSON.stringify({
+          file_name: f.fileName,
+          run_id: f.runId,
+          output_parsed: f.parsed,
+          batchResult: f.batchResult,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      updateFileSubmission(index, { submissionStatus: "submitted", submissionId: data.submission_id });
+    } catch (e: unknown) {
+      updateFileSubmission(index, {
+        submissionStatus: "error",
+        submissionError: e instanceof Error ? e.message : "Submission failed",
+      });
+    }
+  };
+
+  const handleResubmitFile = async (index: number) => {
+    const f = filesData[index];
+    if (!f?.submissionId) return;
+    updateFileSubmission(index, { submissionStatus: "loading", submissionError: undefined });
+    try {
+      const res = await fetch(`http://localhost:8000/reviews/${f.submissionId}/resubmit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": "reviewer" },
+        body: JSON.stringify({
+          file_name: f.fileName,
+          run_id: f.runId,
+          output_parsed: f.parsed,
+          batchResult: f.batchResult,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      updateFileSubmission(index, { submissionStatus: "submitted" });
+    } catch (e: unknown) {
+      updateFileSubmission(index, {
+        submissionStatus: "error",
+        submissionError: e instanceof Error ? e.message : "Resubmission failed",
+      });
+    }
+  };
+
+  const handleCheckStatus = async (index: number) => {
+    const f = filesData[index];
+    if (!f?.submissionId) return;
+    try {
+      const res = await fetch(`http://localhost:8000/reviews/${f.submissionId}`, {
+        headers: { "x-api-key": "reviewer" },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const status = (data.status || "").toLowerCase();
+      if (status === "approved" || status === "rejected" || status === "submitted") {
+        updateFileSubmission(index, { submissionStatus: status as FileData["submissionStatus"] });
+      }
+    } catch {
+      // silently ignore
+    }
+  };
+
   const currentFile = filesData[activeFileIndex] || null;
 
-  // Close popup when switching tabs so it doesn't show a stale file
-  const handleSelectFile = (index: number) => {
+  // Ordered list of mock OCR file keys for index-based fallback
+  const mockOcrKeys = Object.keys(mockOcrResponse.files);
+
+  // Close popup when switching tabs so it doesn't show a stale file,
+  // and fetch OCR translated content for the newly selected file.
+  const handleSelectFile = async (index: number) => {
     setActiveFileIndex(index);
     setShowActualFile(false);
+
+    const selectedFile = filesData[index];
+    if (!selectedFile) return;
+
+    // Already have OCR content — nothing to do
+    if (selectedFile.translatedContent) return;
+
+    let content: string | null = null;
+
+    if (useMock) {
+      // Mock mode: look up by mock file_name key, fall back by index
+      const mockFiles = mockOcrResponse.files as Record<string, string>;
+      content =
+        mockFiles[selectedFile.fileName] ??
+        mockFiles[mockOcrKeys[index % mockOcrKeys.length]] ??
+        null;
+    } else if (ocrSessionId) {
+      // Live mode: try real API, fall back to mock by index
+      content = await fetchOcrContent(ocrSessionId, selectedFile.fileName, false);
+      if (!content) {
+        const mockFiles = mockOcrResponse.files as Record<string, string>;
+        content =
+          mockFiles[selectedFile.fileName] ??
+          mockFiles[mockOcrKeys[index % mockOcrKeys.length]] ??
+          null;
+      }
+    }
+
+    if (content) {
+      setFilesData((prev) => {
+        const updated = [...prev];
+        updated[index] = { ...updated[index], translatedContent: content! };
+        return updated;
+      });
+    }
   };
 
   return (
@@ -113,6 +261,45 @@ export default function Home() {
               </span>
             </div>
           )}
+          {/* Mock / API toggle — unlabeled radio */}
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setUseMock(true)}
+              className={`w-3 h-3 rounded-full transition-all ${
+                useMock ? 'bg-amber-400 shadow-sm' : 'bg-gray-300 hover:bg-gray-400'
+              }`}
+              title="Mock data"
+            />
+            <button
+              type="button"
+              onClick={() => setUseMock(false)}
+              className={`w-3 h-3 rounded-full transition-all ${
+                !useMock ? 'bg-emerald-500 shadow-sm' : 'bg-gray-300 hover:bg-gray-400'
+              }`}
+              title="Live API"
+            />
+          </div>
+          {/* User info & Logout */}
+          {user && (
+            <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <UserIcon size={16} />
+                <span className="font-medium">{user.name}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold capitalize" style={{ backgroundColor: '#fdf2f7', color: '#be1549' }}>
+                  {user.role}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all"
+                title="Sign out"
+              >
+                <LogOut size={15} />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -146,6 +333,13 @@ export default function Home() {
             onReject={handleReject}
             isApproved={currentFile?.isApproved || false}
             onHighlightRequest={handleHighlightRequest}
+            role={user?.role}
+            onSubmit={() => handleSubmitFile(activeFileIndex)}
+            onResubmit={() => handleResubmitFile(activeFileIndex)}
+            onCheckStatus={() => handleCheckStatus(activeFileIndex)}
+            submissionStatus={currentFile?.submissionStatus}
+            submissionId={currentFile?.submissionId}
+            submissionError={currentFile?.submissionError}
           />
         </div>
       </div>

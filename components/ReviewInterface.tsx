@@ -9,6 +9,9 @@ import {
   ChevronRight,
   CheckCircle,
   XCircle,
+  Send,
+  RefreshCw,
+  Clock,
 } from "lucide-react";
 import { OutputParsed } from "@/lib/types";
 import { calculateComplianceStats } from "@/lib/utils";
@@ -22,6 +25,13 @@ interface ReviewInterfaceProps {
   onReject: () => void;
   isApproved: boolean;
   onHighlightRequest: (text: string) => void;
+  role?: "reviewer" | "approver";
+  onSubmit?: () => Promise<void>;
+  onResubmit?: () => Promise<void>;
+  onCheckStatus?: () => Promise<void>;
+  submissionStatus?: "idle" | "loading" | "submitted" | "rejected" | "approved" | "error";
+  submissionId?: string;
+  submissionError?: string;
 }
 
 export default function ReviewInterface({
@@ -30,6 +40,13 @@ export default function ReviewInterface({
   onReject,
   isApproved,
   onHighlightRequest,
+  role = "approver",
+  onSubmit,
+  onResubmit,
+  onCheckStatus,
+  submissionStatus = "idle",
+  submissionId,
+  submissionError,
 }: ReviewInterfaceProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCompliance, setFilterCompliance] = useState<"all" | "Y" | "N">("all");
@@ -171,38 +188,51 @@ export default function ReviewInterface({
               {expandAll ? "Collapse" : "Expand"}
             </button>
 
-            {/* Approve/Reject Buttons */}
+            {/* Action Buttons */}
             <div className="flex items-center gap-2 ml-auto">
-              <button
-                onClick={onApprove}
-                disabled={isApproved}
-                className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
-                  isApproved
-                    ? "cursor-default shadow-md"
-                    : "border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
-                }`}
-                style={{
-                  backgroundColor: isApproved ? '#be1549' : '#fdf2f7',
-                  color: isApproved ? '#fdf2f7' : '#be1549',
-                  borderColor: '#be1549',
-                }}
-              >
-                <CheckCircle size={14} />
-                {isApproved ? "Approved" : "Approve"}
-              </button>
-              <button
-                onClick={onReject}
-                disabled={!isApproved}
-                className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
-                  !isApproved
-                    ? "border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-300"
-                }`}
-                style={!isApproved ? { backgroundColor: '#fdf2f7', color: '#be1549', borderColor: '#e5d0da' } : {}}
-              >
-                <XCircle size={14} />
-                Reject
-              </button>
+              {role === "reviewer" ? (
+                <ReviewerActions
+                  submissionStatus={submissionStatus}
+                  submissionId={submissionId}
+                  submissionError={submissionError}
+                  onSubmit={onSubmit}
+                  onResubmit={onResubmit}
+                  onCheckStatus={onCheckStatus}
+                />
+              ) : (
+                <>
+                  <button
+                    onClick={onApprove}
+                    disabled={isApproved}
+                    className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
+                      isApproved
+                        ? "cursor-default shadow-md"
+                        : "border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
+                    }`}
+                    style={{
+                      backgroundColor: isApproved ? '#be1549' : '#fdf2f7',
+                      color: isApproved ? '#fdf2f7' : '#be1549',
+                      borderColor: '#be1549',
+                    }}
+                  >
+                    <CheckCircle size={14} />
+                    {isApproved ? "Approved" : "Approve"}
+                  </button>
+                  <button
+                    onClick={onReject}
+                    disabled={!isApproved}
+                    className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
+                      !isApproved
+                        ? "border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-300"
+                    }`}
+                    style={!isApproved ? { backgroundColor: '#fdf2f7', color: '#be1549', borderColor: '#e5d0da' } : {}}
+                  >
+                    <XCircle size={14} />
+                    Reject
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -275,6 +305,103 @@ export default function ReviewInterface({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------
+// Reviewer-only action bar: Submit / Resubmit / Check Status
+// -------------------------------------------------------------------
+interface ReviewerActionsProps {
+  submissionStatus: "idle" | "loading" | "submitted" | "rejected" | "approved" | "error";
+  submissionId?: string;
+  submissionError?: string;
+  onSubmit?: () => Promise<void>;
+  onResubmit?: () => Promise<void>;
+  onCheckStatus?: () => Promise<void>;
+}
+
+function ReviewerActions({
+  submissionStatus,
+  submissionId,
+  submissionError,
+  onSubmit,
+  onResubmit,
+  onCheckStatus,
+}: ReviewerActionsProps) {
+  const isLoading = submissionStatus === "loading";
+
+  const statusBadge = () => {
+    const map: Record<string, { label: string; bg: string; color: string; border: string }> = {
+      submitted: { label: "Submitted",  bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
+      approved:  { label: "Approved",   bg: "#f0fdf4", color: "#166534", border: "#bbf7d0" },
+      rejected:  { label: "Rejected",   bg: "#fef2f2", color: "#991b1b", border: "#fecaca" },
+    };
+    const s = map[submissionStatus];
+    if (!s) return null;
+    return (
+      <span
+        className="text-xs font-semibold px-2 py-0.5 rounded-full border"
+        style={{ backgroundColor: s.bg, color: s.color, borderColor: s.border }}
+      >
+        {s.label}
+      </span>
+    );
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {/* Submit — only when not yet submitted */}
+      {(submissionStatus === "idle" || submissionStatus === "error") && (
+        <button
+          onClick={onSubmit}
+          disabled={isLoading}
+          className="px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{ backgroundColor: "#fdf2f7", color: "#be1549", borderColor: "#be1549" }}
+          title="Submit this file to approver"
+        >
+          {isLoading ? (
+            <><span className="animate-spin inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full" />Submitting...</>
+          ) : (
+            <><Send size={13} />Submit to Approver</>
+          )}
+        </button>
+      )}
+
+      {/* Status badge */}
+      {statusBadge()}
+
+      {/* Resubmit — only when rejected */}
+      {submissionStatus === "rejected" && (
+        <button
+          onClick={onResubmit}
+          disabled={isLoading}
+          className="px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm border-2 hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{ backgroundColor: "#fdf2f7", color: "#be1549", borderColor: "#be1549" }}
+          title="Resubmit this file for approval"
+        >
+          <RefreshCw size={13} />Resubmit
+        </button>
+      )}
+
+      {/* Check status — when submitted and awaiting decision */}
+      {submissionStatus === "submitted" && submissionId && (
+        <button
+          onClick={onCheckStatus}
+          disabled={isLoading}
+          className="px-2.5 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 border hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed text-gray-600 border-gray-300"
+          title={`Check approval status (ID: ${submissionId})`}
+        >
+          <Clock size={13} />Check Status
+        </button>
+      )}
+
+      {/* Inline error */}
+      {submissionStatus === "error" && submissionError && (
+        <span className="text-xs text-red-600 max-w-[130px] truncate" title={submissionError}>
+          {submissionError}
+        </span>
+      )}
     </div>
   );
 }

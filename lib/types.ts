@@ -135,6 +135,10 @@ export interface FileData {
   translatedContent?: string; // OCR HTML/markdown content to render directly
   isApproved?: boolean;
   batchResult?: BatchResult;
+
+  submissionId?: string;
+  submissionStatus?: "idle" | "loading" | "submitted" | "rejected" | "approved" | "error";
+  submissionError?: string;
 }
 
 // ==============================

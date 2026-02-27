@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       
       // Return mock data with the actual filename
       return NextResponse.json({
-        ...mockApiResponse,
+        ...(mockApiResponse as Record<string, unknown>),
         file_name: file.name,
       });
     }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Fallback to mock data in development
     if (process.env.NODE_ENV === "development") {
-      return NextResponse.json(mockApiResponse);
+      return NextResponse.json(mockApiResponse as unknown);
     }
 
     return NextResponse.json(
