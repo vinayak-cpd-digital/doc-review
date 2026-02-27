@@ -39,9 +39,13 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated; redirect approver to their page
   if (!isLoading && !user) {
     router.replace("/login");
+    return null;
+  }
+  if (!isLoading && user?.role === "approver") {
+    router.replace("/approver");
     return null;
   }
 

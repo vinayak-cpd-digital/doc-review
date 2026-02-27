@@ -17,9 +17,9 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, user } = useAuth();
 
-  // If already logged in, redirect
+  // If already logged in, redirect by role
   if (user) {
-    router.replace("/");
+    router.replace(user.role === "approver" ? "/approver" : "/");
     return null;
   }
 
@@ -45,7 +45,7 @@ export default function LoginPage() {
     }
 
     login(user);
-    router.replace("/");
+    router.replace(user.role === "approver" ? "/approver" : "/");
   };
 
   return (
